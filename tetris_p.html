@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>俄罗斯方块</title>
+
+<style>
+body{
+    margin:0;
+    background:#000;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    color:white;
+    font-family:sans-serif;
+}
+
+canvas{
+    background:#000;
+    margin:10px auto;
+    border:2px solid #444;
+    border-radius:8px;
+}
+
+#score{
+    font-size:18px;
+}
+
+#controls{
+    margin-top:10px;
+    display:flex;
+    gap:12px;
+}
+
+.btn{
+    width:48px;
+    height:48px;
+    background:#fff;
+    color:#000;
+    font-size:16px;
+    font-weight:bold;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    border-radius:10px;
+    user-select:none;
+    touch-action:manipulation;
+}
+</style>
+</head>
+
+<body>
+
+<div id="score">Score: 0</div>
+<canvas id="game"></canvas>
+
+<div id="controls">
+    <div class="btn" id="left">←</div>
+    <div class="btn" id="right">→</div>
+    <div class="btn" id="down">↓</div>
+    <div class="btn" id="rotate">⟳</div>
+</div>
+
+<script>
+// ================= 尺寸自适应 =================
+const COLS = 10;
+const ROWS = 20;
+
+const SCALE = 0.7;   // 控制整体大小（可改 0.6~0.8）
+
+let usableWidth = window.innerWidth * SCALE;
+let usableHeight = window.innerHeight * 0.65;
+
+const CELL = Math.floor(
+    Math.min(usableWidth / COLS, usableHeight / ROWS)
+);
+
+const canvas = document.getElementById("game");
+canvas.width = COLS * CELL;
+canvas.height = ROWS * CELL;
+
+const ctx = canvas.getContext("2d");
+
+// ================= 数据 =================
+const COLORS = [
+ null,'#00ffff','#0000ff','#ffa500',
+ '#ffff00','#00ff00','#800080','#ff0000'
+];
+
+const SHAPES = [
+ [[1,1,1,1]],
+ [[1,0,0],[1,1,1]],
+ [[0,0,1],[1,1,1]],
+ [[1,1],[1,1]],
+ [[0,1,1],[1,1,0]],
+ [[0,1,0],[1,1,1]],
+ [[1,1,0],[0,1,1]]
+];
+
+let grid = Array.from({length:ROWS},()=>Array(COLS).fill(0));
+let score = 0;
+
+// ================= 工具函数 =================
+function drawCell(x,y,color){
+    ctx.fillStyle=color;
+    ctx.fillRect(x*CELL,y*CELL,CELL,CELL);
+    ctx.strokeStyle="#333";
+    ctx.strokeRect(x*CELL,y*CELL,CELL,CELL);
+}
+
+class Piece{
+    constructor(shape){
+        this.shape=shape;
+        this.color=SHAPES.indexOf(shape)+1;
+        this.x=Math.floor(COLS/2)-1;
+        this.y=-1;
+    }
+
+    rotate(){
+        this.shape=this.shape[0].map((_,i)=>
+            this.shape.map(r=>r[i]).reverse()
+        );
+    }
+}
+
+function valid(p,dx=0,dy=0){
+    for(let i=0;i<p.shape.length;i++){
+        for(let j=0;j<p.shape[i].length;j++){
+            if(!p.shape[i][j]) continue;
+
+            let x=p.x+j+dx;
+            let y=p.y+i+dy;
+
+            if(x<0||x>=COLS||y>=ROWS) return false;
+            if(y>=0 && grid[y][x]) return false;
+        }
+    }
+    return true;
+}
+
+function merge(p){
+    p.shape.forEach((row,i)=>{
+        row.forEach((v,j)=>{
+            if(v && p.y+i>=0)
+                grid[p.y+i][p.x+j]=p.color;
+        });
+    });
+}
+
+function clearLines(){
+    let lines=0;
+    for(let y=ROWS-1;y>=0;y--){
+        if(grid[y].every(c=>c)){
+            grid.splice(y,1);
+            grid.unshift(Array(COLS).fill(0));
+            lines++;
+            y++;
+        }
+    }
+    score += lines*10;
+    document.getElementById("score").innerText="Score: "+score;
+}
+
+// ================= 绘制 =================
+function drawGrid(){
+    for(let y=0;y<ROWS;y++)
+        for(let x=0;x<COLS;x++)
+            drawCell(x,y,COLORS[grid[y][x]]||"#000");
+}
+
+function drawPiece(p){
+    p.shape.forEach((row,i)=>{
+        row.forEach((v,j)=>{
+            if(v && p.y+i>=0)
+                drawCell(p.x+j,p.y+i,COLORS[p.color]);
+        });
+    });
+}
+
+// ================= 游戏逻辑 =================
+function randomPiece(){
+    return new Piece(
+        SHAPES[Math.floor(Math.random()*SHAPES.length)]
+    );
+}
+
+let current=randomPiece();
+let dropInterval=500;
+let lastDrop=Date.now();
+
+function drop(){
+    if(valid(current,0,1)){
+        current.y++;
+    }else{
+        merge(current);
+        clearLines();
+        current=randomPiece();
+
+        if(!valid(current)){
+            alert("Game Over");
+            grid = Array.from({length:ROWS},()=>Array(COLS).fill(0));
+            score=0;
+        }
+    }
+}
+
+function update(){
+    if(Date.now()-lastDrop>dropInterval){
+        drop();
+        lastDrop=Date.now();
+    }
+}
+
+function render(){
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    drawGrid();
+    drawPiece(current);
+}
+
+function loop(){
+    update();
+    render();
+    requestAnimationFrame(loop);
+}
+loop();
+
+// ================= 触屏控制 =================
+function rotateSafe(){
+    current.rotate();
+    if(!valid(current))
+        for(let i=0;i<3;i++) current.rotate();
+}
+
+document.getElementById("left").ontouchstart =
+()=>{ if(valid(current,-1,0)) current.x--; };
+
+document.getElementById("right").ontouchstart =
+()=>{ if(valid(current,1,0)) current.x++; };
+
+document.getElementById("down").ontouchstart =
+()=>{ drop(); lastDrop=Date.now(); };
+
+document.getElementById("rotate").ontouchstart =
+()=> rotateSafe();
+
+// 键盘（可选）
+document.addEventListener("keydown",e=>{
+    if(e.key==="ArrowLeft" && valid(current,-1,0)) current.x--;
+    if(e.key==="ArrowRight" && valid(current,1,0)) current.x++;
+    if(e.key==="ArrowDown"){ drop(); lastDrop=Date.now(); }
+    if(e.key==="ArrowUp") rotateSafe();
+});
+</script>
+
+</body>
+</html>
