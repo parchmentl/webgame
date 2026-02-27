@@ -5,7 +5,7 @@
 <meta name="viewport"
 content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 
-<title>Snake</title>
+<title>贪吃蛇</title>
 
 <style>
 body{
@@ -52,11 +52,7 @@ canvas{
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 
-/////////////////////////
-// 屏幕自适应（关键）
-/////////////////////////
 function resizeCanvas(){
-
     const size = Math.min(
         window.innerWidth * 0.92,
         window.innerHeight * 0.72
@@ -78,8 +74,6 @@ function resizeCanvas(){
 
 window.addEventListener("resize",resizeCanvas);
 
-/////////////////////////
-
 const GRID = 20;
 let GAME_SIZE = 300;
 let CELL = 15;
@@ -93,10 +87,7 @@ let nextDir = {x:1,y:0};
 let food = randomFood();
 let score = 0;
 
-/////////////////////////
-// 游戏速度（降低）
-/////////////////////////
-let speed = 220;   // ← 越大越慢
+let speed = 220;
 let lastTime = 0;
 
 function randomFood(){
@@ -107,7 +98,6 @@ function randomFood(){
 }
 
 function update(){
-
     dir = nextDir;
 
     const head = {
@@ -115,13 +105,11 @@ function update(){
         y:snake[0].y + dir.y
     };
 
-    // 撞墙
     if(head.x<0||head.y<0||head.x>=GRID||head.y>=GRID){
         restart();
         return;
     }
 
-    // 撞自己
     for(let s of snake){
         if(s.x===head.x && s.y===head.y){
             restart();
@@ -131,28 +119,20 @@ function update(){
 
     snake.unshift(head);
 
-    // 吃食物
     if(head.x===food.x && head.y===food.y){
-
         score++;
         document.getElementById("score").innerText=score;
-
         food=randomFood();
-
-        // 微加速（手感关键）
         speed = Math.max(90, speed - 5);
-
     }else{
         snake.pop();
     }
 }
 
 function draw(){
-
     ctx.fillStyle="#000";
     ctx.fillRect(0,0,GAME_SIZE,GAME_SIZE);
 
-    // 食物
     ctx.fillStyle="#ff3b3b";
     ctx.beginPath();
     ctx.arc(
@@ -163,7 +143,6 @@ function draw(){
     );
     ctx.fill();
 
-    // 蛇
     snake.forEach((s,i)=>{
         ctx.fillStyle=i===0?"#3cff3c":"#16a516";
         ctx.fillRect(
@@ -175,25 +154,17 @@ function draw(){
     });
 }
 
-/////////////////////////
-// 时间驱动循环（不卡帧）
-/////////////////////////
 function gameLoop(timestamp){
-
     if(timestamp - lastTime > speed){
         update();
         draw();
         lastTime = timestamp;
     }
-
     requestAnimationFrame(gameLoop);
 }
 
 requestAnimationFrame(gameLoop);
 
-/////////////////////////
-// 键盘控制
-/////////////////////////
 document.addEventListener("keydown",e=>{
     if(e.key==="ArrowUp" && dir.y!==1) nextDir={x:0,y:-1};
     if(e.key==="ArrowDown" && dir.y!==-1) nextDir={x:0,y:1};
@@ -201,9 +172,6 @@ document.addEventListener("keydown",e=>{
     if(e.key==="ArrowRight" && dir.x!==-1) nextDir={x:1,y:0};
 });
 
-/////////////////////////
-// 触屏滑动（优化）
-/////////////////////////
 let startX=0,startY=0;
 
 canvas.addEventListener("touchstart",e=>{
@@ -212,7 +180,6 @@ canvas.addEventListener("touchstart",e=>{
 },{passive:true});
 
 canvas.addEventListener("touchend",e=>{
-
     let dx=e.changedTouches[0].clientX-startX;
     let dy=e.changedTouches[0].clientY-startY;
 
@@ -225,10 +192,7 @@ canvas.addEventListener("touchend",e=>{
         if(dy>0 && dir.y!==-1) nextDir={x:0,y:1};
         else if(dy<0 && dir.y!==1) nextDir={x:0,y:-1};
     }
-
 },{passive:true});
-
-/////////////////////////
 
 function restart(){
     alert("游戏结束！得分："+score);
