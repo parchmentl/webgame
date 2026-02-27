@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>打地鼠升级版</title>
+<style>
+body {
+    margin: 0;
+    background: #222;
+    color: #fff;
+    font-family: Arial, sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+h2 {
+    margin: 20px;
+}
+.scoreboard {
+    display: flex;
+    gap: 20px;
+    font-size: 18px;
+    margin-bottom: 10px;
+}
+#game {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-gap: 10px;
+    width: 90vw;
+    max-width: 400px;
+}
+.hole {
+    position: relative;
+    width: 100%;
+    padding-bottom: 100%; /* 保持正方形 */
+    background: #555;
+    border-radius: 12px;
+    overflow: hidden;
+    cursor: pointer;
+}
+.mole {
+    position: absolute;
+    width: 70%;
+    height: 70%;
+    border-radius: 50%;
+    bottom: -70%;
+    left: 15%;
+    transition: bottom 0.3s;
+}
+.mole.up { bottom: 10%; }
+.mole.normal { background: brown; }
+.mole.fast { background: red; }
+.mole.slow { background: blue; }
+button {
+    margin-top: 20px;
+    padding: 10px 20px;
+    font-size: 16px;
+    border-radius: 10px;
+    border: none;
+    background: #333;
+    color: #fff;
+    cursor: pointer;
+}
+button:hover { background: #555; }
+</style>
+</head>
+<body>
+
+<h2>🐹 打地鼠升级版</h2>
+<div class="scoreboard">
+    <div>得分：<span id="score">0</span></div>
+    <div>时间：<span id="time">30</span>s</div>
+    <div>最高分：<span id="highscore">0</span></div>
+</div>
+<div id="game"></div>
+<button id="restartBtn">重新开始</button>
+
+<audio id="hitSound" src="https://cdn.jsdelivr.net/gh/likerain/sounds/mole-hit.mp3" preload="auto"></audio>
+
+<script>
+const game = document.getElementById('game');
+const scoreEl = document.getElementById('score');
+const timeEl = document.getElementById('time');
+const highScoreEl = document.getElementById('highscore');
+const restartBtn = document.getElementById('restartBtn');
+const hitSound = document.getElementById('hitSound');
+
+let score = 0;
+let highScore = localStorage.getItem('moleHigh') || 0;
+highScoreEl.textContent = highScore;
+
+const holes = [];
+const numHoles = 9;
+let lastHole;
+let timeUp = false;
+let gameTime = 30; // 30秒
+let countdownInterval;
+
+// 创建洞和地鼠
+for(let i=0;i<numHoles;i++){
+    const hole = document.createElement('div');
+    hole.classList.add('hole');
+    const mole = document.createElement('div');
+    mole.classList.add('mole', 'normal');
+    hole.appendChild(mole);
+    game.appendChild(hole);
+    holes.push(hole);
+}
+
+// 随机选择洞
+function randomHole(){
+    const idx = Math.floor(Math.random()*holes.length);
+    const hole = holes[idx];
+    if(hole === lastHole) return randomHole();
+    lastHole = hole;
+    return hole;
+}
+
+// 随机地鼠类型
+function randomMoleType(){
+    const r = Math.random();
+    if(r < 0.6) return 'normal'; // 普通 60%
+    else if(r < 0.85) return 'fast'; // 快 25%
+    else return 'slow'; // 慢 15%
+}
+
+// 弹出地鼠
+function popMole(){
+    const timeMap = {normal:[500,1000], fast:[300,600], slow:[800,1500]};
+    const hole = randomHole();
+    const mole = hole.querySelector('.mole');
+    const type = randomMoleType();
+    mole.className = `mole ${type} up`;
+    const popTime = Math.random()*(timeMap[type][1]-timeMap[type][0])+timeMap[type][0];
+
+    setTimeout(()=>{
+        mole.classList.remove('up');
+        if(!timeUp) popMole();
+    }, popTime);
+}
+
+// 点击打地鼠
+holes.forEach(hole=>{
+    hole.addEventListener('click', e=>{
+        const mole = hole.querySelector('.mole');
+        if(mole.classList.contains('up')){
+            // 分数
+            let type = 'normal';
+            if(mole.classList.contains('fast')) type='fast';
+            if(mole.classList.contains('slow')) type='slow';
+            const points = type==='normal'?1:type==='fast'?2:3;
+            score += points;
+            scoreEl.textContent = score;
+
+            // 播放声音
+            hitSound.currentTime = 0;
+            hitSound.play();
+
+            mole.classList.remove('up');
+        }
+    });
+});
+
+// 倒计时
+function startTimer(){
+    gameTime = 30;
+    timeEl.textContent = gameTime;
+    countdownInterval = setInterval(()=>{
+        gameTime--;
+        timeEl.textContent = gameTime;
+        if(gameTime <= 0){
+            timeUp = true;
+            clearInterval(countdownInterval);
+            if(score > highScore){
+                highScore = score;
+                localStorage.setItem('moleHigh', highScore);
+                highScoreEl.textContent = highScore;
+            }
+            alert(`游戏结束！得分：${score}`);
+        }
+    },1000);
+}
+
+// 开始游戏
+function startGame(){
+    score = 0;
+    scoreEl.textContent = score;
+    timeUp = false;
+    popMole();
+    startTimer();
+}
+
+// 重新开始按钮
+restartBtn.addEventListener('click', ()=>{
+    timeUp=true; // 停掉当前弹出
+    setTimeout(()=>{
+        startGame();
+    },100); // 确保旧的 popMole 停掉
+});
+
+// 自动开始
+startGame();
+</script>
+</body>
+</html>
