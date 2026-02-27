@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>2048 游戏</title>
+<style>
+body {
+    font-family: 'Arial', sans-serif;
+    background: #faf8ef;
+    margin: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+}
+#game-container {
+    background: #bbada0;
+    padding: 15px;
+    border-radius: 10px;
+    display: grid;
+    grid-template-columns: repeat(4, 80px);
+    grid-gap: 15px;
+}
+.cell {
+    width: 80px;
+    height: 80px;
+    background: #cdc1b4;
+    border-radius: 5px;
+    font-size: 32px;
+    font-weight: bold;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: #776e65;
+    user-select: none;
+}
+.cell-2 {background:#eee4da;color:#776e65;}
+.cell-4 {background:#ede0c8;color:#776e65;}
+.cell-8 {background:#f2b179;color:#f9f6f2;}
+.cell-16 {background:#f59563;color:#f9f6f2;}
+.cell-32 {background:#f67c5f;color:#f9f6f2;}
+.cell-64 {background:#f65e3b;color:#f9f6f2;}
+.cell-128 {background:#edcf72;color:#f9f6f2;}
+.cell-256 {background:#edcc61;color:#f9f6f2;}
+.cell-512 {background:#edc850;color:#f9f6f2;}
+.cell-1024 {background:#edc53f;color:#f9f6f2;}
+.cell-2048 {background:#edc22e;color:#f9f6f2;}
+.score-board {
+    position:absolute;
+    top:10px;
+    display:flex;
+    gap:20px;
+    font-size:18px;
+    font-weight:bold;
+}
+button {
+    margin-top:20px;
+    padding:10px 20px;
+    font-size:16px;
+    border:none;
+    border-radius:8px;
+    background:#8f7a66;
+    color:#f9f6f2;
+    cursor:pointer;
+}
+</style>
+</head>
+<body>
+<div style="position:relative;">
+    <div class="score-board">
+        <div>分数: <span id="score">0</span></div>
+    </div>
+    <div id="game-container"></div>
+    <button id="restartBtn">重新开始</button>
+</div>
+
+<script>
+const container = document.getElementById('game-container');
+const scoreEl = document.getElementById('score');
+const restartBtn = document.getElementById('restartBtn');
+
+let grid = [];
+let score = 0;
+
+// 初始化空格
+function initGrid() {
+    grid = [];
+    container.innerHTML = '';
+    for(let i=0;i<4;i++){
+        grid[i] = [];
+        for(let j=0;j<4;j++){
+            grid[i][j]=0;
+            const cell = document.createElement('div');
+            cell.classList.add('cell');
+            container.appendChild(cell);
+        }
+    }
+    addRandom();
+    addRandom();
+    updateGrid();
+}
+
+// 更新界面
+function updateGrid(){
+    const cells = container.querySelectorAll('.cell');
+    let k=0;
+    for(let i=0;i<4;i++){
+        for(let j=0;j<4;j++){
+            const val = grid[i][j];
+            const cell = cells[k++];
+            cell.textContent = val>0?val:'';
+            cell.className='cell';
+            if(val>0) cell.classList.add('cell-'+val);
+        }
+    }
+    scoreEl.textContent = score;
+}
+
+// 随机生成2或4
+function addRandom(){
+    const empty = [];
+    for(let i=0;i<4;i++){
+        for(let j=0;j<4;j++){
+            if(grid[i][j]===0) empty.push([i,j]);
+        }
+    }
+    if(empty.length===0) return;
+    const [i,j] = empty[Math.floor(Math.random()*empty.length)];
+    grid[i][j] = Math.random()<0.9?2:4;
+}
+
+// 移动逻辑
+function move(dir){
+    let moved=false;
+    function slide(row){
+        row = row.filter(v=>v);
+        for(let i=0;i<row.length-1;i++){
+            if(row[i]===row[i+1]){
+                row[i]*=2;
+                score+=row[i];
+                row[i+1]=0;
+            }
+        }
+        row = row.filter(v=>v);
+        while(row.length<4) row.push(0);
+        return row;
+    }
+    if(dir==='left'){
+        for(let i=0;i<4;i++){
+            const old = grid[i].slice();
+            grid[i] = slide(grid[i]);
+            if(old.toString()!==grid[i].toString()) moved=true;
+        }
+    }else if(dir==='right'){
+        for(let i=0;i<4;i++){
+            const old = grid[i].slice();
+            grid[i] = slide(grid[i].reverse()).reverse();
+            if(old.toString()!==grid[i].toString()) moved=true;
+        }
+    }else if(dir==='up'){
+        for(let j=0;j<4;j++){
+            const col=[];
+            for(let i=0;i<4;i++) col.push(grid[i][j]);
+            const old = col.slice();
+            const newCol = slide(col);
+            for(let i=0;i<4;i++) grid[i][j]=newCol[i];
+            if(old.toString()!==newCol.toString()) moved=true;
+        }
+    }else if(dir==='down'){
+        for(let j=0;j<4;j++){
+            const col=[];
+            for(let i=0;i<4;i++) col.push(grid[i][j]);
+            const old = col.slice();
+            const newCol = slide(col.reverse()).reverse();
+            for(let i=0;i<4;i++) grid[i][j]=newCol[i];
+            if(old.toString()!==newCol.toString()) moved=true;
+        }
+    }
+    if(moved){
+        addRandom();
+        updateGrid();
+        if(checkGameOver()) alert('游戏结束！得分: '+score);
+    }
+}
+
+// 检测游戏结束
+function checkGameOver(){
+    for(let i=0;i<4;i++){
+        for(let j=0;j<4;j++){
+            if(grid[i][j]===0) return false;
+            if(i<3 && grid[i][j]===grid[i+1][j]) return false;
+            if(j<3 && grid[i][j]===grid[i][j+1]) return false;
+        }
+    }
+    return true;
+}
+
+// 键盘控制
+document.addEventListener('keydown', e=>{
+    if(e.key==='ArrowLeft') move('left');
+    else if(e.key==='ArrowRight') move('right');
+    else if(e.key==='ArrowUp') move('up');
+    else if(e.key==='ArrowDown') move('down');
+});
+
+// 触屏滑动控制
+let startX=0, startY=0;
+document.addEventListener('touchstart', e=>{
+    const touch = e.touches[0];
+    startX=touch.clientX;
+    startY=touch.clientY;
+});
+document.addEventListener('touchend', e=>{
+    const touch = e.changedTouches[0];
+    const dx = touch.clientX - startX;
+    const dy = touch.clientY - startY;
+    if(Math.abs(dx)>Math.abs(dy)){
+        if(dx>20) move('right');
+        else if(dx<-20) move('left');
+    }else{
+        if(dy>20) move('down');
+        else if(dy<-20) move('up');
+    }
+});
+
+// 重新开始按钮
+restartBtn.addEventListener('click', initGrid);
+
+// 初始化
+initGrid();
+</script>
+</body>
+</html>
