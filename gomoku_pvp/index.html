@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>五子棋（双人对战）</title>
+<style>
+:root {
+  --bg: #f4efe3;
+  --panel: #ffffff;
+  --text: #2b2b2b;
+  --accent: #825e38;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle at top, #fbf7ef 0%, var(--bg) 60%);
+  font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
+  color: var(--text);
+}
+.wrap {
+  width: min(92vw, 620px);
+  background: var(--panel);
+  border-radius: 16px;
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.12);
+  padding: 16px;
+}
+.head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+h1 { margin: 0; font-size: 22px; }
+#status { font-size: 15px; color: #5f5f5f; }
+.actions { display: flex; gap: 8px; }
+button {
+  border: none;
+  border-radius: 10px;
+  padding: 8px 12px;
+  background: var(--accent);
+  color: #fff;
+  cursor: pointer;
+  font-size: 14px;
+}
+button:active { transform: translateY(1px); }
+.board {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  border-radius: 12px;
+  overflow: hidden;
+}
+canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+  background: linear-gradient(180deg, #e9c88f 0%, #dfba7a 100%);
+  touch-action: none;
+}
+.tip {
+  margin-top: 10px;
+  font-size: 13px;
+  color: #666;
+}
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="head">
+      <div>
+        <h1>五子棋（双人对战）</h1>
+        <div id="status">当前：黑棋</div>
+      </div>
+      <div class="actions">
+        <button id="reset">重新开始</button>
+      </div>
+    </div>
+    <div class="board"><canvas id="board"></canvas></div>
+    <div class="tip">规则：黑白轮流落子，先连成五子者胜。</div>
+  </div>
+
+<script>
+const SIZE = 15;
+const BLACK = 1;
+const WHITE = 2;
+
+const canvas = document.getElementById('board');
+const ctx = canvas.getContext('2d');
+const statusEl = document.getElementById('status');
+const resetBtn = document.getElementById('reset');
+
+let cell = 0;
+let offset = 0;
+let board = [];
+let current = BLACK;
+let gameOver = false;
+let moves = 0;
+let touchHandled = false;
+
+function init() {
+  board = Array.from({ length: SIZE }, () => Array(SIZE).fill(0));
+  current = BLACK;
+  gameOver = false;
+  moves = 0;
+  resizeBoard();
+  updateStatus();
+}
+
+function resizeBoard() {
+  const dpr = window.devicePixelRatio || 1;
+  const side = canvas.clientWidth;
+  canvas.width = side * dpr;
+  canvas.height = side * dpr;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  cell = side / (SIZE + 1);
+  offset = cell;
+  draw();
+}
+
+function draw() {
+  const side = canvas.clientWidth;
+  ctx.clearRect(0, 0, side, side);
+
+  ctx.strokeStyle = '#6e4e2f';
+  ctx.lineWidth = 1;
+  for (let i = 0; i < SIZE; i++) {
+    const p = offset + i * cell;
+    ctx.beginPath();
+    ctx.moveTo(offset, p);
+    ctx.lineTo(offset + (SIZE - 1) * cell, p);
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(p, offset);
+    ctx.lineTo(p, offset + (SIZE - 1) * cell);
+    ctx.stroke();
+  }
+
+  const stars = [[3,3],[3,7],[3,11],[7,3],[7,7],[7,11],[11,3],[11,7],[11,11]];
+  ctx.fillStyle = '#5c3d1f';
+  stars.forEach(([r, c]) => {
+    ctx.beginPath();
+    ctx.arc(offset + c * cell, offset + r * cell, Math.max(2, cell * 0.08), 0, Math.PI * 2);
+    ctx.fill();
+  });
+
+  for (let r = 0; r < SIZE; r++) {
+    for (let c = 0; c < SIZE; c++) {
+      if (!board[r][c]) continue;
+      drawStone(r, c, board[r][c]);
+    }
+  }
+}
+
+function drawStone(r, c, who) {
+  const x = offset + c * cell;
+  const y = offset + r * cell;
+  const radius = cell * 0.42;
+  const gradient = ctx.createRadialGradient(x - radius * 0.35, y - radius * 0.35, radius * 0.2, x, y, radius);
+  if (who === BLACK) {
+    gradient.addColorStop(0, '#666');
+    gradient.addColorStop(1, '#111');
+  } else {
+    gradient.addColorStop(0, '#fff');
+    gradient.addColorStop(1, '#d9d9d9');
+  }
+  ctx.beginPath();
+  ctx.arc(x, y, radius, 0, Math.PI * 2);
+  ctx.fillStyle = gradient;
+  ctx.fill();
+}
+
+function updateStatus(msg) {
+  if (msg) {
+    statusEl.textContent = msg;
+    return;
+  }
+  statusEl.textContent = gameOver ? '对局结束' : `当前：${current === BLACK ? '黑棋' : '白棋'}`;
+}
+
+function xyToRC(clientX, clientY) {
+  const rect = canvas.getBoundingClientRect();
+  const x = clientX - rect.left;
+  const y = clientY - rect.top;
+  const c = Math.round((x - offset) / cell);
+  const r = Math.round((y - offset) / cell);
+  if (r < 0 || r >= SIZE || c < 0 || c >= SIZE) return null;
+
+  const px = offset + c * cell;
+  const py = offset + r * cell;
+  if (Math.hypot(x - px, y - py) > cell * 0.45) return null;
+
+  return { r, c };
+}
+
+function scan(r, c, dr, dc, who) {
+  let n = 0;
+  let nr = r + dr;
+  let nc = c + dc;
+  while (nr >= 0 && nr < SIZE && nc >= 0 && nc < SIZE && board[nr][nc] === who) {
+    n++;
+    nr += dr;
+    nc += dc;
+  }
+  return n;
+}
+
+function checkWin(r, c, who) {
+  const dirs = [[1, 0], [0, 1], [1, 1], [1, -1]];
+  for (const [dr, dc] of dirs) {
+    let count = 1;
+    count += scan(r, c, dr, dc, who);
+    count += scan(r, c, -dr, -dc, who);
+    if (count >= 5) return true;
+  }
+  return false;
+}
+
+function doMove(r, c) {
+  if (gameOver || board[r][c] !== 0) return;
+
+  const who = current;
+  board[r][c] = who;
+  moves++;
+  draw();
+
+  if (checkWin(r, c, who)) {
+    gameOver = true;
+    updateStatus(`${who === BLACK ? '黑棋' : '白棋'}获胜，共 ${moves} 手`);
+    return;
+  }
+
+  if (moves === SIZE * SIZE) {
+    gameOver = true;
+    updateStatus('平局');
+    return;
+  }
+
+  current = who === BLACK ? WHITE : BLACK;
+  updateStatus();
+}
+
+function placeAt(clientX, clientY) {
+  if (gameOver) return;
+  const rc = xyToRC(clientX, clientY);
+  if (!rc) return;
+  doMove(rc.r, rc.c);
+}
+
+canvas.addEventListener('click', (e) => {
+  if (touchHandled) {
+    touchHandled = false;
+    return;
+  }
+  placeAt(e.clientX, e.clientY);
+});
+
+canvas.addEventListener('touchend', (e) => {
+  const touch = e.changedTouches[0];
+  touchHandled = true;
+  placeAt(touch.clientX, touch.clientY);
+}, { passive: true });
+
+window.addEventListener('resize', resizeBoard);
+resetBtn.addEventListener('click', init);
+
+init();
+</script>
+</body>
+</html>
