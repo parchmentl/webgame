@@ -151,7 +151,7 @@ function playMergeSound() {
     osc.frequency.setValueAtTime(620, now);
     osc.frequency.exponentialRampToValueAtTime(980, now + 0.08);
     gain.gain.setValueAtTime(0.0001, now);
-    gain.gain.exponentialRampToValueAtTime(0.08, now + 0.015);
+    gain.gain.exponentialRampToValueAtTime(0.18, now + 0.015);
     gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.10);
 
     osc.connect(gain);
