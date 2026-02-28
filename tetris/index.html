@@ -417,19 +417,47 @@ const rotateBtn = document.getElementById("rotate");
 const upBtn = document.getElementById("up");
 
 let downHoldTimer = null;
+let leftHoldTimer = null;
+let rightHoldTimer = null;
 
 if(leftBtn){
     leftBtn.ontouchstart = e=>{
         e.preventDefault();
-        if(!paused && valid(current,-1,0)) current.x--;
+        if(paused) return;
+        if(valid(current,-1,0)) current.x--;
+        if(leftHoldTimer) clearInterval(leftHoldTimer);
+        leftHoldTimer = setInterval(()=>{
+            if(!paused && valid(current,-1,0)) current.x--;
+        }, 120);
     };
+    leftBtn.ontouchend = e=>{
+        e.preventDefault();
+        if(leftHoldTimer){
+            clearInterval(leftHoldTimer);
+            leftHoldTimer = null;
+        }
+    };
+    leftBtn.ontouchcancel = leftBtn.ontouchend;
 }
 
 if(rightBtn){
     rightBtn.ontouchstart = e=>{
         e.preventDefault();
-        if(!paused && valid(current,1,0)) current.x++;
+        if(paused) return;
+        if(valid(current,1,0)) current.x++;
+        if(rightHoldTimer) clearInterval(rightHoldTimer);
+        rightHoldTimer = setInterval(()=>{
+            if(!paused && valid(current,1,0)) current.x++;
+        }, 120);
     };
+    rightBtn.ontouchend = e=>{
+        e.preventDefault();
+        if(rightHoldTimer){
+            clearInterval(rightHoldTimer);
+            rightHoldTimer = null;
+        }
+    };
+    rightBtn.ontouchcancel = rightBtn.ontouchend;
 }
 
 if(downBtn){
