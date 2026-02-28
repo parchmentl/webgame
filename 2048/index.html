@@ -112,7 +112,7 @@ button {
     <div class="score-board">
         <div>分数: <span id="score">0</span></div>
         <div class="clock" id="clock">--:--:--</div>
-        <div class="version">v1.0.2</div>
+        <div class="version">v1.0.3</div>
     </div>
     <div id="game-container"></div>
     <button id="restartBtn">重新开始</button>
@@ -126,6 +126,39 @@ const clockEl = document.getElementById('clock');
 
 let grid = [];
 let score = 0;
+let audioCtx = null;
+
+function ensureAudioContext() {
+    if (!audioCtx) {
+        const Ctx = window.AudioContext || window.webkitAudioContext;
+        if (!Ctx) return null;
+        audioCtx = new Ctx();
+    }
+    if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+    }
+    return audioCtx;
+}
+
+function playMergeSound() {
+    const ctx = ensureAudioContext();
+    if (!ctx) return;
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(620, now);
+    osc.frequency.exponentialRampToValueAtTime(980, now + 0.08);
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(0.08, now + 0.015);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.10);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.11);
+}
 
 // 初始化空格
 function initGrid() {
@@ -177,6 +210,7 @@ function addRandom(){
 // 移动逻辑
 function move(dir){
     let moved=false;
+    let merged=false;
     function slide(row){
         row = row.filter(v=>v);
         for(let i=0;i<row.length-1;i++){
@@ -184,6 +218,7 @@ function move(dir){
                 row[i]*=2;
                 score+=row[i];
                 row[i+1]=0;
+                merged = true;
             }
         }
         row = row.filter(v=>v);
@@ -224,6 +259,7 @@ function move(dir){
     if(moved){
         addRandom();
         updateGrid();
+        if(merged) playMergeSound();
         if(checkGameOver()) alert('游戏结束！得分: '+score);
     }
 }
@@ -249,6 +285,7 @@ function updateClock(){
 
 // 键盘控制
 document.addEventListener('keydown', e=>{
+    ensureAudioContext();
     if(e.key==='ArrowLeft') move('left');
     else if(e.key==='ArrowRight') move('right');
     else if(e.key==='ArrowUp') move('up');
@@ -258,6 +295,7 @@ document.addEventListener('keydown', e=>{
 // 触屏滑动控制（只在棋盘区域生效，避免浏览器手势返回）
 let startX=0, startY=0;
 container.addEventListener('touchstart', e=>{
+    ensureAudioContext();
     if(e.touches.length!==1) return;
     const touch = e.touches[0];
     startX=touch.clientX;
@@ -282,7 +320,10 @@ container.addEventListener('touchend', e=>{
 }, {passive:false});
 
 // 重新开始按钮
-restartBtn.addEventListener('click', initGrid);
+restartBtn.addEventListener('click', ()=>{
+    ensureAudioContext();
+    initGrid();
+});
 
 // 初始化
 initGrid();
