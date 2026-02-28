@@ -130,6 +130,42 @@ canvas{
 .help summary{
     cursor:pointer;
 }
+
+@media (max-width: 600px){
+    body{
+        justify-content:flex-start;
+        padding-top:8px;
+    }
+    canvas{
+        margin:6px auto;
+    }
+    #controls{
+        width:220px;
+        margin-top:10px;
+    }
+    .btn{
+        width:40px;
+        height:40px;
+        font-size:16px;
+    }
+    .action-btn{
+        width:42px;
+        height:42px;
+    }
+}
+
+@media (max-height: 620px){
+    body{
+        justify-content:flex-start;
+        padding:6px 0 10px;
+    }
+    #controls{
+        margin-top:8px;
+    }
+    .help{
+        font-size:11px;
+    }
+}
 </style>
 </head>
 
