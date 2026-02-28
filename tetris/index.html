@@ -36,16 +36,19 @@ canvas{
 
 .pause-btn{
     margin-top:8px;
-    padding:4px 14px;
+    padding:4px 16px;
     border-radius:999px;
-    border:1px solid #555;
-    background:#111;
-    color:#fff;
-    font-size:13px;
+    border:none;
+    background:radial-gradient(circle at 30% 30%, #f4f4f4, #c4c4c4);
+    color:#111;
+    font-size:12px;
+    letter-spacing:1px;
     cursor:pointer;
+    box-shadow:0 3px 0 #777;
 }
 .pause-btn:active{
-    transform:translateY(1px);
+    transform:translateY(2px);
+    box-shadow:0 1px 0 #555;
 }
 
 #controls{
@@ -141,7 +144,7 @@ canvas{
         padding-top:8px;
     }
     canvas{
-        margin:6px auto;
+        margin:6px auto 4px;
     }
     #controls{
         width:260px;
@@ -159,6 +162,12 @@ canvas{
     }
     .actions{
         margin-top:54px;
+    }
+    .pause-btn{
+        font-size:11px;
+        padding:3px 14px;
+        margin-top:6px;
+        box-shadow:0 3px 0 #777;
     }
 }
 
