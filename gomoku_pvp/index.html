@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>五子棋（双人对战）</title>
+<title>五子棋</title>
 <style>
 :root {
   --bg: #f4efe3;
@@ -38,6 +38,11 @@ body {
 }
 h1 { margin: 0; font-size: 22px; }
 #status { font-size: 15px; color: #5f5f5f; }
+.version {
+  font-size: 12px;
+  color: #999;
+  margin-top: 2px;
+}
 .actions { display: flex; gap: 8px; }
 button {
   border: none;
@@ -73,8 +78,9 @@ canvas {
   <div class="wrap">
     <div class="head">
       <div>
-        <h1>五子棋（双人对战）</h1>
+        <h1>五子棋</h1>
         <div id="status">当前：黑棋</div>
+        <div class="version">v1.0.0</div>
       </div>
       <div class="actions">
         <button id="reset">重新开始</button>
