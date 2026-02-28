@@ -2,7 +2,7 @@
 <html lang="zh">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>2048 游戏</title>
 <style>
 body {
@@ -12,24 +12,37 @@ body {
     display: flex;
     justify-content: center;
     align-items: center;
-    height: 100vh;
+    min-height: 100vh;
+    padding-top: max(16px, env(safe-area-inset-top));
+    padding-bottom: max(16px, env(safe-area-inset-bottom));
+    padding-left: max(20px, calc(env(safe-area-inset-left) + 20px));
+    padding-right: max(20px, calc(env(safe-area-inset-right) + 20px));
     touch-action: none;
     overscroll-behavior: none;
 }
+.app {
+    width: min(100%, 460px);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+}
 #game-container {
     background: #bbada0;
-    padding: 15px;
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    padding: 3.5%;
     border-radius: 10px;
     display: grid;
-    grid-template-columns: repeat(4, 80px);
-    grid-gap: 15px;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 3.5%;
 }
 .cell {
-    width: 80px;
-    height: 80px;
+    width: 100%;
+    aspect-ratio: 1 / 1;
     background: #cdc1b4;
     border-radius: 5px;
-    font-size: 32px;
+    font-size: clamp(20px, 7vw, 32px);
     font-weight: bold;
     display: flex;
     justify-content: center;
@@ -49,10 +62,11 @@ body {
 .cell-1024 {background:#edc53f;color:#f9f6f2;}
 .cell-2048 {background:#edc22e;color:#f9f6f2;}
 .score-board {
-    position:absolute;
-    top:10px;
+    width: 100%;
     display:flex;
-    gap:16px;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 16px;
     font-size:18px;
     font-weight:bold;
 }
@@ -63,7 +77,7 @@ body {
     align-self:flex-end;
 }
 button {
-    margin-top:20px;
+    width: 100%;
     padding:10px 20px;
     font-size:16px;
     border:none;
@@ -72,10 +86,21 @@ button {
     color:#f9f6f2;
     cursor:pointer;
 }
+@media (max-width: 420px) {
+    .score-board {
+        font-size: 16px;
+    }
+    .version {
+        font-size: 11px;
+    }
+    button {
+        font-size: 15px;
+    }
+}
 </style>
 </head>
 <body>
-<div style="position:relative;">
+<div class="app">
     <div class="score-board">
         <div>分数: <span id="score">0</span></div>
         <div class="version">v1.0.0</div>
