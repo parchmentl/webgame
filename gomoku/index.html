@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh">
 <head>
 <meta charset="UTF-8" />
@@ -97,16 +97,19 @@ const ctx = canvas.getContext('2d');
 const statusEl = document.getElementById('status');
 const resetBtn = document.getElementById('reset');
 
+const HUMAN = 1; // 玩家执黑
+const AI = 2;    // AI 执白
+
 let cell = 0;
 let offset = 0;
 let board = [];
-let current = 1; // 1 黑棋, 2 白棋
+let current = HUMAN; // 当前执子方
 let gameOver = false;
 let moves = 0;
 
 function init() {
   board = Array.from({ length: SIZE }, () => Array(SIZE).fill(0));
-  current = 1;
+  current = HUMAN;
   gameOver = false;
   moves = 0;
   resizeBoard();
@@ -183,7 +186,11 @@ function drawStone(r,c,who){
 
 function updateStatus(msg){
   if(msg){ statusEl.textContent = msg; return; }
-  statusEl.textContent = gameOver ? '对局结束' : `当前：${current===1?'黑棋':'白棋'}`;
+  if (gameOver) {
+    statusEl.textContent = '对局结束';
+  } else {
+    statusEl.textContent = current === HUMAN ? '你的回合（黑棋）' : 'AI 回合（白棋）';
+  }
 }
 
 function xyToRC(clientX, clientY){
@@ -219,11 +226,8 @@ function scan(r,c,dr,dc,who){
   return n;
 }
 
-function placeAt(clientX, clientY){
+function doMove(r, c){
   if(gameOver) return;
-  const rc=xyToRC(clientX,clientY);
-  if(!rc) return;
-  const {r,c}=rc;
   if(board[r][c]!==0) return;
 
   board[r][c]=current;
@@ -232,7 +236,11 @@ function placeAt(clientX, clientY){
 
   if(checkWin(r,c,current)){
     gameOver=true;
-    updateStatus(`${current===1?'黑棋':'白棋'}获胜，共 ${moves} 手`);
+    if (current === HUMAN) {
+      updateStatus(`你（黑棋）获胜，共 ${moves} 手`);
+    } else {
+      updateStatus(`AI（白棋）获胜，共 ${moves} 手`);
+    }
     return;
   }
   if(moves===SIZE*SIZE){
@@ -241,8 +249,100 @@ function placeAt(clientX, clientY){
     return;
   }
 
-  current = current===1?2:1;
+  current = current===HUMAN ? AI : HUMAN;
   updateStatus();
+}
+
+function placeAt(clientX, clientY){
+  if(gameOver) return;
+  // 只允许玩家在自己的回合点击落子
+  if (current !== HUMAN) return;
+  const rc=xyToRC(clientX,clientY);
+  if(!rc) return;
+  const {r,c}=rc;
+  doMove(r,c);
+  // 玩家落子后，若游戏未结束则轮到 AI
+  if (!gameOver && current === AI) {
+    setTimeout(aiMove, 200);
+  }
+}
+
+function aiMove(){
+  if (gameOver || current !== AI) return;
+
+  const move = findBestMove();
+  if (!move) return;
+  const { r, c } = move;
+  doMove(r, c);
+}
+
+function findBestMove(){
+  let bestMoves = [];
+
+  // 1. 如果 AI 有直接获胜的一步，优先走
+  for (let r = 0; r < SIZE; r++) {
+    for (let c = 0; c < SIZE; c++) {
+      if (board[r][c] !== 0) continue;
+      board[r][c] = AI;
+      if (checkWin(r, c, AI)) {
+        board[r][c] = 0;
+        return { r, c };
+      }
+      board[r][c] = 0;
+    }
+  }
+
+  // 2. 如果玩家下一步能获胜，则优先堵住
+  for (let r = 0; r < SIZE; r++) {
+    for (let c = 0; c < SIZE; c++) {
+      if (board[r][c] !== 0) continue;
+      board[r][c] = HUMAN;
+      if (checkWin(r, c, HUMAN)) {
+        board[r][c] = 0;
+        return { r, c };
+      }
+      board[r][c] = 0;
+    }
+  }
+
+  // 3. 否则选择“周围有最多棋子”的位置下子（简单打分）
+  let bestScore = -1;
+  for (let r = 0; r < SIZE; r++) {
+    for (let c = 0; c < SIZE; c++) {
+      if (board[r][c] !== 0) continue;
+      let score = 0;
+      for (let dr = -1; dr <= 1; dr++) {
+        for (let dc = -1; dc <= 1; dc++) {
+          if (dr === 0 && dc === 0) continue;
+          const nr = r + dr;
+          const nc = c + dc;
+          if (nr < 0 || nr >= SIZE || nc < 0 || nc >= SIZE) continue;
+          if (board[nr][nc] !== 0) score++;
+        }
+      }
+      if (score > bestScore) {
+        bestScore = score;
+        bestMoves = [{ r, c }];
+      } else if (score === bestScore) {
+        bestMoves.push({ r, c });
+      }
+    }
+  }
+
+  if (bestMoves.length === 0) {
+    // 极端情况：棋盘全空，或没找到，随机找一个空位
+    const empties = [];
+    for (let r = 0; r < SIZE; r++) {
+      for (let c = 0; c < SIZE; c++) {
+        if (board[r][c] === 0) empties.push({ r, c });
+      }
+    }
+    if (empties.length === 0) return null;
+    return empties[Math.floor(Math.random() * empties.length)];
+  }
+
+  // 在评分最高的位置里随机选一个，避免每次都下一样
+  return bestMoves[Math.floor(Math.random() * bestMoves.length)];
 }
 
 canvas.addEventListener('click', e=>placeAt(e.clientX,e.clientY));
