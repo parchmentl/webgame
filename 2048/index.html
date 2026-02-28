@@ -13,6 +13,8 @@ body {
     justify-content: center;
     align-items: center;
     height: 100vh;
+    touch-action: none;
+    overscroll-behavior: none;
 }
 #game-container {
     background: #bbada0;
@@ -50,9 +52,15 @@ body {
     position:absolute;
     top:10px;
     display:flex;
-    gap:20px;
+    gap:16px;
     font-size:18px;
     font-weight:bold;
+}
+.version {
+    font-size:12px;
+    font-weight:normal;
+    color:#776e65;
+    align-self:flex-end;
 }
 button {
     margin-top:20px;
@@ -70,6 +78,7 @@ button {
 <div style="position:relative;">
     <div class="score-board">
         <div>分数: <span id="score">0</span></div>
+        <div class="version">v1.0.0</div>
     </div>
     <div id="game-container"></div>
     <button id="restartBtn">重新开始</button>
@@ -204,25 +213,31 @@ document.addEventListener('keydown', e=>{
     else if(e.key==='ArrowDown') move('down');
 });
 
-// 触屏滑动控制
+// 触屏滑动控制（只在棋盘区域生效，避免浏览器手势返回）
 let startX=0, startY=0;
-document.addEventListener('touchstart', e=>{
+container.addEventListener('touchstart', e=>{
+    if(e.touches.length!==1) return;
     const touch = e.touches[0];
     startX=touch.clientX;
     startY=touch.clientY;
-});
-document.addEventListener('touchend', e=>{
+}, {passive:false});
+
+container.addEventListener('touchend', e=>{
+    if(e.changedTouches.length!==1) return;
     const touch = e.changedTouches[0];
     const dx = touch.clientX - startX;
     const dy = touch.clientY - startY;
+    if(Math.abs(dx)<20 && Math.abs(dy)<20) return;
+    // 阻止浏览器的默认左右滑动返回等行为
+    e.preventDefault();
     if(Math.abs(dx)>Math.abs(dy)){
-        if(dx>20) move('right');
-        else if(dx<-20) move('left');
+        if(dx>0) move('right');
+        else move('left');
     }else{
-        if(dy>20) move('down');
-        else if(dy<-20) move('up');
+        if(dy>0) move('down');
+        else move('up');
     }
-});
+}, {passive:false});
 
 // 重新开始按钮
 restartBtn.addEventListener('click', initGrid);
