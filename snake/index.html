@@ -31,12 +31,18 @@ canvas{
     margin:8px;
     font-size:20px;
 }
+.version{
+    margin-top:4px;
+    font-size:12px;
+    color:#aaa;
+}
 </style>
 </head>
 <body>
 <div class="wrapper">
 <h2>🐍 贪吃蛇</h2>
 <div class="score">得分：<span id="score">0</span></div>
+<div class="version">v1.0.0</div>
 <canvas id="game"></canvas>
 <p>滑动屏幕控制方向</p>
 </div>
@@ -79,7 +85,23 @@ window.addEventListener("resize",resizeCanvas);
 resizeCanvas();
 
 function randomFood(){
-    return {x:Math.floor(Math.random()*GRID), y:Math.floor(Math.random()*GRID)};
+    const free = [];
+    for(let y=0;y<GRID;y++){
+        for(let x=0;x<GRID;x++){
+            let occupied = false;
+            for(const s of snake){
+                if(s.x===x && s.y===y){
+                    occupied = true;
+                    break;
+                }
+            }
+            if(!occupied){
+                free.push({x,y});
+            }
+        }
+    }
+    if(free.length===0) return null;
+    return free[Math.floor(Math.random()*free.length)];
 }
 
 function update(){
@@ -103,6 +125,11 @@ function update(){
         score++;
         document.getElementById("score").innerText=score;
         food=randomFood();
+        if(!food){
+            alert("太强了！你已经填满了整个棋盘，最终得分："+score);
+            restart();
+            return;
+        }
         speed = Math.max(90, speed - 5);
     }else{
         snake.pop();
