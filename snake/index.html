@@ -215,7 +215,7 @@ function draw(){
 
     // 食物闪烁
     if(food){
-        let alpha = 0.5 + 0.5*Math.sin(foodBlink*6);
+        let alpha = 0.75 + 0.25*Math.sin(foodBlink*6);
         ctx.fillStyle=`rgba(255,50,50,${alpha})`;
         ctx.beginPath();
         ctx.arc(food.x*CELL + CELL/2, food.y*CELL + CELL/2, CELL/2.5, 0, Math.PI*2);
