@@ -43,6 +43,11 @@ body {
 }
 h1 { margin: 0; font-size: 22px; }
 #status { font-size: 15px; color: #5f5f5f; }
+.version {
+  font-size: 12px;
+  color: #999;
+  margin-top: 2px;
+}
 .actions { display: flex; gap: 8px; }
 button {
   border: none;
@@ -81,6 +86,7 @@ canvas {
     <div>
       <h1>五子棋</h1>
       <div id="status">当前：黑棋</div>
+      <div class="version" id="version"></div>
     </div>
     <div class="actions">
       <button id="reset">重新开始</button>
@@ -96,10 +102,12 @@ const canvas = document.getElementById('board');
 const ctx = canvas.getContext('2d');
 const statusEl = document.getElementById('status');
 const resetBtn = document.getElementById('reset');
+const versionEl = document.getElementById('version');
 
 const HUMAN = 1; // 玩家执黑
 const AI = 2;    // AI 执白
 const MAX_DEPTH = 3; // 搜索深度（奇数：我方-对方-我方）
+const VERSION = 'v1.0.0 · AI: α-β 搜索';
 
 let cell = 0;
 let offset = 0;
@@ -113,6 +121,9 @@ function init() {
   current = HUMAN;
   gameOver = false;
   moves = 0;
+  if (versionEl) {
+    versionEl.textContent = VERSION;
+  }
   resizeBoard();
   updateStatus();
 }
