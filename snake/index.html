@@ -49,6 +49,19 @@ canvas{
 .btn-start:active{
     transform:translateY(1px);
 }
+.controls{
+    display:flex;
+    justify-content:center;
+    gap:8px;
+    margin:6px 0 4px;
+}
+.controls .btn-start{
+    margin:0;
+}
+.btn-start:disabled{
+    opacity:.45;
+    cursor:not-allowed;
+}
 .result{
     margin-top:4px;
     font-size:13px;
@@ -62,7 +75,12 @@ canvas{
 <h2>🐍 贪吃蛇</h2>
 <div class="score">得分：<span id="score">0</span></div>
 <div class="version">v1.0.1</div>
-<button id="startBtn" class="btn-start">开始游戏</button>
+<div class="controls">
+<button id="startBtn" class="btn-start">开始</button>
+<button id="pauseBtn" class="btn-start">暂停</button>
+<button id="continueBtn" class="btn-start">继续</button>
+<button id="restartBtn" class="btn-start">重新开始</button>
+</div>
 <div id="result" class="result"></div>
 <canvas id="game"></canvas>
 <p>滑动屏幕控制方向</p>
@@ -73,6 +91,9 @@ const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 const scoreEl = document.getElementById("score");
 const startBtn = document.getElementById("startBtn");
+const pauseBtn = document.getElementById("pauseBtn");
+const continueBtn = document.getElementById("continueBtn");
+const restartBtn = document.getElementById("restartBtn");
 const resultEl = document.getElementById("result");
 
 const GRID = 20;
@@ -88,6 +109,8 @@ let score = 0;
 let speed = 220;
 let lastTime = 0;
 let running = false;
+let started = false;
+let gameOver = false;
 
 // 闪烁控制
 let foodBlink = 0;
@@ -109,6 +132,7 @@ function resizeCanvas(){
 window.addEventListener("resize",resizeCanvas);
 resizeCanvas();
 draw();
+updateControls();
 
 function randomFood(){
     const free = [];
@@ -269,27 +293,58 @@ function restart(){
     scoreEl.innerText=0;
     foodBlink = 0;
     lastTime = 0;
+    gameOver = false;
 }
 
 function startGame(){
     restart();
     running = true;
+    started = true;
     if(resultEl) resultEl.textContent = "";
-    if(startBtn) startBtn.textContent = "重新开始";
     draw();
+    updateControls();
 }
 
 function endGame(type){
     running = false;
+    gameOver = true;
     let msg = "游戏结束！得分："+score;
     if(type === "full"){
         msg = "太强了！你已经填满了整个棋盘，最终得分："+score;
     }
     if(resultEl) resultEl.textContent = msg;
-    if(startBtn) startBtn.textContent = "再来一局";
+    updateControls();
+}
+
+function pauseGame(){
+    if(!started || !running || gameOver) return;
+    running = false;
+    if(resultEl) resultEl.textContent = "已暂停";
+    updateControls();
+}
+
+function continueGame(){
+    if(!started || running || gameOver) return;
+    running = true;
+    if(resultEl) resultEl.textContent = "";
+    updateControls();
+}
+
+function restartGame(){
+    startGame();
+}
+
+function updateControls(){
+    startBtn.disabled = started;
+    pauseBtn.disabled = !started || !running || gameOver;
+    continueBtn.disabled = !started || running || gameOver;
+    restartBtn.disabled = !started;
 }
 
 startBtn.addEventListener("click", startGame);
+pauseBtn.addEventListener("click", pauseGame);
+continueBtn.addEventListener("click", continueGame);
+restartBtn.addEventListener("click", restartGame);
 </script>
 </body>
 </html>
