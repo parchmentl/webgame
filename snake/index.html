@@ -99,6 +99,9 @@ const restartBtn = document.getElementById("restartBtn");
 const resultEl = document.getElementById("result");
 
 const GRID = 20;
+const START_SPEED = 320;
+const MIN_SPEED = 110;
+const SPEED_STEP = 3;
 let GAME_SIZE = 300;
 let CELL = 15;
 
@@ -108,7 +111,7 @@ let nextDir = {x:1,y:0};
 let food = randomFood();
 let score = 0;
 
-let speed = 220;
+let speed = START_SPEED;
 let lastTime = 0;
 let running = false;
 let started = false;
@@ -182,7 +185,7 @@ function update(){
             return;
         }
         food=newFood;
-        speed = Math.max(90, speed - 5);
+        speed = Math.max(MIN_SPEED, START_SPEED - score * SPEED_STEP);
     }else{
         snake.pop();
     }
@@ -293,7 +296,7 @@ function restart(){
     dir={x:1,y:0};
     nextDir={x:1,y:0};
     score=0;
-    speed=220;
+    speed=START_SPEED;
     food=randomFood();
     if(!food){
         food = {x:0,y:0};
