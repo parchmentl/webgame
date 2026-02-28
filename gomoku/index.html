@@ -99,6 +99,7 @@ const resetBtn = document.getElementById('reset');
 
 const HUMAN = 1; // 玩家执黑
 const AI = 2;    // AI 执白
+const MAX_DEPTH = 3; // 搜索深度（奇数：我方-对方-我方）
 
 let cell = 0;
 let offset = 0;
@@ -226,6 +227,141 @@ function scan(r,c,dr,dc,who){
   return n;
 }
 
+function hasWin(who){
+  for (let r = 0; r < SIZE; r++) {
+    for (let c = 0; c < SIZE; c++) {
+      if (board[r][c] === who && checkWin(r, c, who)) return true;
+    }
+  }
+  return false;
+}
+
+function generateCandidates(){
+  const candidates = [];
+  let hasStone = false;
+  for (let r = 0; r < SIZE; r++) {
+    for (let c = 0; c < SIZE; c++) {
+      if (board[r][c] !== 0) {
+        hasStone = true;
+        break;
+      }
+    }
+    if (hasStone) break;
+  }
+
+  // 开局无子时，直接走正中
+  if (!hasStone) {
+    const center = Math.floor(SIZE / 2);
+    return [{ r: center, c: center }];
+  }
+
+  for (let r = 0; r < SIZE; r++) {
+    for (let c = 0; c < SIZE; c++) {
+      if (board[r][c] !== 0) continue;
+      let near = false;
+      for (let dr = -2; dr <= 2 && !near; dr++) {
+        for (let dc = -2; dc <= 2 && !near; dc++) {
+          if (dr === 0 && dc === 0) continue;
+          const nr = r + dr;
+          const nc = c + dc;
+          if (nr < 0 || nr >= SIZE || nc < 0 || nc >= SIZE) continue;
+          if (board[nr][nc] !== 0) near = true;
+        }
+      }
+      if (!near) continue;
+      const score = localScore(r, c, AI) + localScore(r, c, HUMAN) * 0.9;
+      candidates.push({ r, c, score });
+    }
+  }
+
+  candidates.sort((a, b) => b.score - a.score);
+  const LIMIT = 12;
+  return candidates.slice(0, LIMIT).map(x => ({ r: x.r, c: x.c }));
+}
+
+function localScore(r, c, who){
+  // 简单局部评分：看四个方向上连续子和活度
+  const dirs = [[1,0],[0,1],[1,1],[1,-1]];
+  let score = 0;
+  for (const [dr, dc] of dirs) {
+    let count1 = 0, open1 = 0;
+    let rr = r + dr, cc = c + dc;
+    while (rr >= 0 && rr < SIZE && cc >= 0 && cc < SIZE && board[rr][cc] === who) {
+      count1++; rr += dr; cc += dc;
+    }
+    if (rr >= 0 && rr < SIZE && cc >= 0 && cc < SIZE && board[rr][cc] === 0) open1 = 1;
+
+    let count2 = 0, open2 = 0;
+    rr = r - dr; cc = c - dc;
+    while (rr >= 0 && rr < SIZE && cc >= 0 && cc < SIZE && board[rr][cc] === who) {
+      count2++; rr -= dr; cc -= dc;
+    }
+    if (rr >= 0 && rr < SIZE && cc >= 0 && cc < SIZE && board[rr][cc] === 0) open2 = 1;
+
+    const total = count1 + count2;
+    const openEnds = open1 + open2;
+    if (total <= 0) continue;
+
+    if (total >= 4 && openEnds > 0) score += 100000;
+    else if (total === 3 && openEnds === 2) score += 8000;
+    else if (total === 3 && openEnds === 1) score += 2000;
+    else if (total === 2 && openEnds === 2) score += 1000;
+    else if (total === 2 && openEnds === 1) score += 300;
+    else if (total === 1 && openEnds === 2) score += 80;
+    else if (total === 1 && openEnds === 1) score += 30;
+  }
+  return score;
+}
+
+function evaluateBoard(){
+  if (hasWin(AI)) return 1e9;
+  if (hasWin(HUMAN)) return -1e9;
+  let scoreAI = 0;
+  let scoreHuman = 0;
+  for (let r = 0; r < SIZE; r++) {
+    for (let c = 0; c < SIZE; c++) {
+      if (board[r][c] === 0) continue;
+      const who = board[r][c];
+      const s = localScore(r, c, who);
+      if (who === AI) scoreAI += s;
+      else scoreHuman += s;
+    }
+  }
+  return scoreAI - scoreHuman;
+}
+
+function alphaBeta(depth, alpha, beta, player){
+  if (depth === 0) return evaluateBoard();
+  if (hasWin(AI) || hasWin(HUMAN)) return evaluateBoard();
+
+  const moves = generateCandidates();
+  if (moves.length === 0) return 0;
+
+  if (player === AI) {
+    let value = -Infinity;
+    for (const { r, c } of moves) {
+      board[r][c] = AI;
+      const score = alphaBeta(depth - 1, alpha, beta, HUMAN);
+      board[r][c] = 0;
+      if (score > value) value = score;
+      if (value > alpha) alpha = value;
+      if (alpha >= beta) break;
+    }
+    return value;
+  } else {
+    let value = Infinity;
+    for (const { r, c } of moves) {
+      board[r][c] = HUMAN;
+      const score = alphaBeta(depth - 1, alpha, beta, AI);
+      board[r][c] = 0;
+      if (score < value) value = score;
+      if (value < beta) beta = value;
+      if (alpha >= beta) break;
+    }
+    return value;
+  }
+}
+
 function doMove(r, c){
   if(gameOver) return;
   if(board[r][c]!==0) return;
@@ -277,71 +413,25 @@ function aiMove(){
 }
 
 function findBestMove(){
+  const candidates = generateCandidates();
+  if (candidates.length === 0) return null;
+
+  let bestScore = -Infinity;
   let bestMoves = [];
 
-  // 1. 如果 AI 有直接获胜的一步，优先走
-  for (let r = 0; r < SIZE; r++) {
-    for (let c = 0; c < SIZE; c++) {
-      if (board[r][c] !== 0) continue;
-      board[r][c] = AI;
-      if (checkWin(r, c, AI)) {
-        board[r][c] = 0;
-        return { r, c };
-      }
-      board[r][c] = 0;
+  for (const { r, c } of candidates) {
+    board[r][c] = AI;
+    const score = alphaBeta(MAX_DEPTH - 1, -Infinity, Infinity, HUMAN);
+    board[r][c] = 0;
+    if (score > bestScore) {
+      bestScore = score;
+      bestMoves = [{ r, c }];
+    } else if (score === bestScore) {
+      bestMoves.push({ r, c });
     }
   }
 
-  // 2. 如果玩家下一步能获胜，则优先堵住
-  for (let r = 0; r < SIZE; r++) {
-    for (let c = 0; c < SIZE; c++) {
-      if (board[r][c] !== 0) continue;
-      board[r][c] = HUMAN;
-      if (checkWin(r, c, HUMAN)) {
-        board[r][c] = 0;
-        return { r, c };
-      }
-      board[r][c] = 0;
-    }
-  }
-
-  // 3. 否则选择“周围有最多棋子”的位置下子（简单打分）
-  let bestScore = -1;
-  for (let r = 0; r < SIZE; r++) {
-    for (let c = 0; c < SIZE; c++) {
-      if (board[r][c] !== 0) continue;
-      let score = 0;
-      for (let dr = -1; dr <= 1; dr++) {
-        for (let dc = -1; dc <= 1; dc++) {
-          if (dr === 0 && dc === 0) continue;
-          const nr = r + dr;
-          const nc = c + dc;
-          if (nr < 0 || nr >= SIZE || nc < 0 || nc >= SIZE) continue;
-          if (board[nr][nc] !== 0) score++;
-        }
-      }
-      if (score > bestScore) {
-        bestScore = score;
-        bestMoves = [{ r, c }];
-      } else if (score === bestScore) {
-        bestMoves.push({ r, c });
-      }
-    }
-  }
-
-  if (bestMoves.length === 0) {
-    // 极端情况：棋盘全空，或没找到，随机找一个空位
-    const empties = [];
-    for (let r = 0; r < SIZE; r++) {
-      for (let c = 0; c < SIZE; c++) {
-        if (board[r][c] === 0) empties.push({ r, c });
-      }
-    }
-    if (empties.length === 0) return null;
-    return empties[Math.floor(Math.random() * empties.length)];
-  }
-
-  // 在评分最高的位置里随机选一个，避免每次都下一样
+  if (bestMoves.length === 0) return candidates[0];
   return bestMoves[Math.floor(Math.random() * bestMoves.length)];
 }
 
