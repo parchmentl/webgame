@@ -4,13 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport"
 content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-
 <title>贪吃蛇</title>
-
 <style>
 body{
     margin:0;
-    background:#111;
+    background:#000;
     display:flex;
     justify-content:center;
     align-items:center;
@@ -19,28 +17,23 @@ body{
     font-family:Arial;
     color:white;
 }
-
 .wrapper{
     text-align:center;
     width:100%;
 }
-
 canvas{
     background:#000;
     border-radius:14px;
     touch-action:none;
     box-shadow:0 0 20px rgba(0,0,0,.6);
 }
-
 .score{
     margin:8px;
     font-size:20px;
 }
 </style>
 </head>
-
 <body>
-
 <div class="wrapper">
 <h2>🐍 贪吃蛇</h2>
 <div class="score">得分：<span id="score">0</span></div>
@@ -52,64 +45,51 @@ canvas{
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 
-function resizeCanvas(){
-    const size = Math.min(
-        window.innerWidth * 0.92,
-        window.innerHeight * 0.72
-    );
-
-    const dpr = window.devicePixelRatio || 1;
-
-    canvas.style.width = size + "px";
-    canvas.style.height = size + "px";
-
-    canvas.width = size * dpr;
-    canvas.height = size * dpr;
-
-    ctx.setTransform(dpr,0,0,dpr,0,0);
-
-    GAME_SIZE = size;
-    CELL = GAME_SIZE / GRID;
-}
-
-window.addEventListener("resize",resizeCanvas);
-
 const GRID = 20;
 let GAME_SIZE = 300;
 let CELL = 15;
 
-resizeCanvas();
-
 let snake = [{x:10,y:10}];
 let dir = {x:1,y:0};
 let nextDir = {x:1,y:0};
-
 let food = randomFood();
 let score = 0;
 
 let speed = 220;
 let lastTime = 0;
 
+// 闪烁控制
+let foodBlink = 0;
+
+function resizeCanvas(){
+    const size = Math.min(
+        window.innerWidth * 0.92,
+        window.innerHeight * 0.72
+    );
+    const dpr = window.devicePixelRatio || 1;
+    canvas.style.width = size + "px";
+    canvas.style.height = size + "px";
+    canvas.width = size * dpr;
+    canvas.height = size * dpr;
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    GAME_SIZE = size;
+    CELL = GAME_SIZE / GRID;
+}
+window.addEventListener("resize",resizeCanvas);
+resizeCanvas();
+
 function randomFood(){
-    return {
-        x:Math.floor(Math.random()*GRID),
-        y:Math.floor(Math.random()*GRID)
-    };
+    return {x:Math.floor(Math.random()*GRID), y:Math.floor(Math.random()*GRID)};
 }
 
 function update(){
     dir = nextDir;
-
-    const head = {
-        x:snake[0].x + dir.x,
-        y:snake[0].y + dir.y
-    };
+    const head = {x:snake[0].x+dir.x, y:snake[0].y+dir.y};
 
     if(head.x<0||head.y<0||head.x>=GRID||head.y>=GRID){
         restart();
         return;
     }
-
     for(let s of snake){
         if(s.x===head.x && s.y===head.y){
             restart();
@@ -127,30 +107,60 @@ function update(){
     }else{
         snake.pop();
     }
+    foodBlink += 0.1;
 }
 
 function draw(){
+    // 背景
     ctx.fillStyle="#000";
     ctx.fillRect(0,0,GAME_SIZE,GAME_SIZE);
 
-    ctx.fillStyle="#ff3b3b";
+    // 边框
+    ctx.strokeStyle="#fff";
+    ctx.lineWidth=3;
+    ctx.strokeRect(0,0,GAME_SIZE,GAME_SIZE);
+
+    // 网格
+    ctx.strokeStyle="#555";
+    ctx.lineWidth=1.5;
+    for(let i=1;i<GRID;i++){
+        ctx.beginPath();
+        ctx.moveTo(i*CELL,0);
+        ctx.lineTo(i*CELL,GAME_SIZE);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(0,i*CELL);
+        ctx.lineTo(GAME_SIZE,i*CELL);
+        ctx.stroke();
+    }
+
+    // 食物闪烁
+    let alpha = 0.5 + 0.5*Math.sin(foodBlink*3);
+    ctx.fillStyle=`rgba(255,204,0,${alpha})`;
     ctx.beginPath();
-    ctx.arc(
-        food.x*CELL+CELL/2,
-        food.y*CELL+CELL/2,
-        CELL/2.6,
-        0,Math.PI*2
-    );
+    ctx.arc(food.x*CELL + CELL/2, food.y*CELL + CELL/2, CELL/2.5, 0, Math.PI*2);
     ctx.fill();
 
+    // 蛇
     snake.forEach((s,i)=>{
-        ctx.fillStyle=i===0?"#3cff3c":"#16a516";
-        ctx.fillRect(
-            s.x*CELL+1,
-            s.y*CELL+1,
-            CELL-2,
-            CELL-2
-        );
+        if(i===0){
+            // 蛇头渐变光晕
+            let grad = ctx.createRadialGradient(
+                s.x*CELL + CELL/2, s.y*CELL + CELL/2, CELL/4,
+                s.x*CELL + CELL/2, s.y*CELL + CELL/2, CELL
+            );
+            grad.addColorStop(0, "#3cff3c");
+            grad.addColorStop(1, "rgba(60,255,60,0.1)");
+            ctx.fillStyle = grad;
+        }else{
+            ctx.fillStyle="#00aa00";
+        }
+        ctx.fillRect(s.x*CELL+1, s.y*CELL+1, CELL-2, CELL-2);
+
+        // 白色描边
+        ctx.strokeStyle="#fff";
+        ctx.lineWidth=1;
+        ctx.strokeRect(s.x*CELL+1, s.y*CELL+1, CELL-2, CELL-2);
     });
 }
 
@@ -162,9 +172,9 @@ function gameLoop(timestamp){
     }
     requestAnimationFrame(gameLoop);
 }
-
 requestAnimationFrame(gameLoop);
 
+// 键盘控制
 document.addEventListener("keydown",e=>{
     if(e.key==="ArrowUp" && dir.y!==1) nextDir={x:0,y:-1};
     if(e.key==="ArrowDown" && dir.y!==-1) nextDir={x:0,y:1};
@@ -172,19 +182,16 @@ document.addEventListener("keydown",e=>{
     if(e.key==="ArrowRight" && dir.x!==-1) nextDir={x:1,y:0};
 });
 
-let startX=0,startY=0;
-
+// 触控滑动控制
+let startX=0, startY=0;
 canvas.addEventListener("touchstart",e=>{
     startX=e.touches[0].clientX;
     startY=e.touches[0].clientY;
 },{passive:true});
-
 canvas.addEventListener("touchend",e=>{
     let dx=e.changedTouches[0].clientX-startX;
     let dy=e.changedTouches[0].clientY-startY;
-
     if(Math.abs(dx)<20 && Math.abs(dy)<20) return;
-
     if(Math.abs(dx)>Math.abs(dy)){
         if(dx>0 && dir.x!==-1) nextDir={x:1,y:0};
         else if(dx<0 && dir.x!==1) nextDir={x:-1,y:0};
@@ -201,10 +208,10 @@ function restart(){
     nextDir={x:1,y:0};
     score=0;
     speed=220;
-    document.getElementById("score").innerText=0;
     food=randomFood();
+    document.getElementById("score").innerText=0;
+    foodBlink = 0;
 }
 </script>
-
 </body>
 </html>
