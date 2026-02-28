@@ -69,6 +69,8 @@ canvas{
     justify-content:center;
     border-radius:10px;
     user-select:none;
+    -webkit-user-select:none;
+    -webkit-touch-callout:none;
     touch-action:manipulation;
     box-shadow:0 3px 0 #777;
 }
@@ -105,11 +107,13 @@ canvas{
     flex-direction:column;
     align-items:center;
     gap:4px;
+    /* 让 A 键大致与十字键中心对齐 */
+    margin-top:50px;
 }
 
 .action-btn{
-    width:46px;
-    height:46px;
+    width:50px;
+    height:50px;
     border-radius:50%;
     background:radial-gradient(circle at 30% 30%, #ffb9b9, #e63939);
     color:#111;
@@ -150,8 +154,11 @@ canvas{
         box-shadow:0 3px 0 #777;
     }
     .action-btn{
-        width:54px;
-        height:54px;
+        width:60px;
+        height:60px;
+    }
+    .actions{
+        margin-top:54px;
     }
 }
 
@@ -394,21 +401,64 @@ function rotateSafe(){
         for(let i=0;i<3;i++) current.rotate();
 }
 
-document.getElementById("left").ontouchstart =
-()=>{ if(!paused && valid(current,-1,0)) current.x--; };
-
-document.getElementById("right").ontouchstart =
-()=>{ if(!paused && valid(current,1,0)) current.x++; };
-
-document.getElementById("down").ontouchstart =
-()=>{ if(!paused){ drop(); lastDrop=Date.now(); } };
-
-document.getElementById("rotate").ontouchstart =
-()=>{ if(!paused) rotateSafe(); };
-
+const leftBtn = document.getElementById("left");
+const rightBtn = document.getElementById("right");
+const downBtn = document.getElementById("down");
+const rotateBtn = document.getElementById("rotate");
 const upBtn = document.getElementById("up");
+
+let downHoldTimer = null;
+
+if(leftBtn){
+    leftBtn.ontouchstart = e=>{
+        e.preventDefault();
+        if(!paused && valid(current,-1,0)) current.x--;
+    };
+}
+
+if(rightBtn){
+    rightBtn.ontouchstart = e=>{
+        e.preventDefault();
+        if(!paused && valid(current,1,0)) current.x++;
+    };
+}
+
+if(downBtn){
+    downBtn.ontouchstart = e=>{
+        e.preventDefault();
+        if(paused) return;
+        drop();
+        lastDrop=Date.now();
+        if(downHoldTimer) clearInterval(downHoldTimer);
+        downHoldTimer = setInterval(()=>{
+            if(!paused){
+                drop();
+                lastDrop=Date.now();
+            }
+        },120);
+    };
+    downBtn.ontouchend = e=>{
+        e.preventDefault();
+        if(downHoldTimer){
+            clearInterval(downHoldTimer);
+            downHoldTimer=null;
+        }
+    };
+    downBtn.ontouchcancel = downBtn.ontouchend;
+}
+
+if(rotateBtn){
+    rotateBtn.ontouchstart = e=>{
+        e.preventDefault();
+        if(!paused) rotateSafe();
+    };
+}
+
 if(upBtn){
-    upBtn.ontouchstart = ()=>{ if(!paused) rotateSafe(); };
+    upBtn.ontouchstart = e=>{
+        e.preventDefault();
+        if(!paused) rotateSafe();
+    };
 }
 
 // 键盘（可选）
