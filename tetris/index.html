@@ -190,7 +190,6 @@ canvas{
 
 <div id="score">Score: 0</div>
 <div class="version">v1.0.3</div>
-<button id="pauseBtn" class="pause-btn">暂停</button>
 <canvas id="game"></canvas>
 
 <div id="controls">
@@ -214,6 +213,7 @@ canvas{
     <div class="actions">
         <div class="btn action-btn" id="rotate">A</div>
         <div class="action-label">旋转</div>
+        <button id="pauseBtn" class="pause-btn">开始</button>
     </div>
 </div>
 
@@ -265,7 +265,7 @@ const SHAPES = [
 
 let grid = Array.from({length:ROWS},()=>Array(COLS).fill(0));
 let score = 0;
-let paused = false;
+let paused = true;
 
 // ================= 工具函数 =================
 function drawCell(x,y,color){
@@ -514,10 +514,18 @@ document.addEventListener("keydown",e=>{
     if(e.key==="ArrowUp") rotateSafe();
 });
 
-pauseBtn.addEventListener("click",()=>{
-    paused = !paused;
-    pauseBtn.textContent = paused ? "继续" : "暂停";
-});
+if(pauseBtn){
+    pauseBtn.textContent = "开始";
+    pauseBtn.addEventListener("click",()=>{
+        if(paused){
+            paused = false;
+            pauseBtn.textContent = "暂停";
+        }else{
+            paused = true;
+            pauseBtn.textContent = "继续";
+        }
+    });
+}
 </script>
 
 </body>
