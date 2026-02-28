@@ -49,17 +49,20 @@ canvas{
 }
 
 #controls{
-    margin-top:10px;
+    margin-top:14px;
     display:flex;
-    gap:12px;
+    justify-content:space-between;
+    align-items:flex-start;
+    width:260px;
+    max-width:90vw;
 }
 
 .btn{
-    width:48px;
-    height:48px;
-    background:#fff;
+    width:44px;
+    height:44px;
+    background:radial-gradient(circle at 30% 30%, #fff, #d2d2d2);
     color:#000;
-    font-size:16px;
+    font-size:18px;
     font-weight:bold;
     display:flex;
     align-items:center;
@@ -67,6 +70,54 @@ canvas{
     border-radius:10px;
     user-select:none;
     touch-action:manipulation;
+    box-shadow:0 3px 0 #777;
+}
+
+.btn:active{
+    transform:translateY(2px);
+    box-shadow:0 1px 0 #555;
+}
+
+.dpad{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:6px;
+}
+
+.dpad-row{
+    display:flex;
+    gap:6px;
+}
+
+.dpad-btn{
+    border-radius:8px;
+}
+
+.dpad-spacer{
+    background:transparent;
+    box-shadow:none;
+    pointer-events:none;
+}
+
+.actions{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:4px;
+}
+
+.action-btn{
+    width:46px;
+    height:46px;
+    border-radius:50%;
+    background:radial-gradient(circle at 30% 30%, #ffb9b9, #e63939);
+    color:#111;
+}
+
+.action-label{
+    font-size:11px;
+    color:#ccc;
 }
 
 .help{
@@ -90,17 +141,34 @@ canvas{
 <canvas id="game"></canvas>
 
 <div id="controls">
-    <div class="btn" id="left">←</div>
-    <div class="btn" id="right">→</div>
-    <div class="btn" id="down">↓</div>
-    <div class="btn" id="rotate">⟳</div>
+    <div class="dpad">
+        <div class="dpad-row">
+            <div class="btn dpad-btn dpad-spacer"></div>
+            <div class="btn dpad-btn" id="up">↑</div>
+            <div class="btn dpad-btn dpad-spacer"></div>
+        </div>
+        <div class="dpad-row">
+            <div class="btn dpad-btn" id="left">←</div>
+            <div class="btn dpad-btn dpad-spacer"></div>
+            <div class="btn dpad-btn" id="right">→</div>
+        </div>
+        <div class="dpad-row">
+            <div class="btn dpad-btn dpad-spacer"></div>
+            <div class="btn dpad-btn" id="down">↓</div>
+            <div class="btn dpad-btn dpad-spacer"></div>
+        </div>
+    </div>
+    <div class="actions">
+        <div class="btn action-btn" id="rotate">A</div>
+        <div class="action-label">旋转</div>
+    </div>
 </div>
 
 <details class="help">
     <summary>游戏操作说明（点击展开）</summary>
     <ul>
         <li>电脑：方向键 ← → 移动，↑ 旋转，↓ 快速下落，P 暂停/继续。</li>
-        <li>手机：点击下方四个按钮控制左右移动、下落和旋转。</li>
+        <li>手机：左侧十字键控制左右移动、下落和旋转（上键），右侧红色 A 也可旋转。</li>
     </ul>
 </details>
 
@@ -300,6 +368,11 @@ document.getElementById("down").ontouchstart =
 
 document.getElementById("rotate").ontouchstart =
 ()=>{ if(!paused) rotateSafe(); };
+
+const upBtn = document.getElementById("up");
+if(upBtn){
+    upBtn.ontouchstart = ()=>{ if(!paused) rotateSafe(); };
+}
 
 // 键盘（可选）
 document.addEventListener("keydown",e=>{
