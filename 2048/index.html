@@ -62,11 +62,13 @@ body {
 .cell-1024 {background:#edc53f;color:#f9f6f2;}
 .cell-2048 {background:#edc22e;color:#f9f6f2;}
 .score-board {
+    position: static;
     width: 100%;
     display:flex;
     justify-content: space-between;
     align-items: baseline;
     gap: 16px;
+    margin-bottom: 6px;
     font-size:18px;
     font-weight:bold;
 }
@@ -103,7 +105,7 @@ button {
 <div class="app">
     <div class="score-board">
         <div>分数: <span id="score">0</span></div>
-        <div class="version">v1.0.0</div>
+        <div class="version">v1.0.1</div>
     </div>
     <div id="game-container"></div>
     <button id="restartBtn">重新开始</button>
