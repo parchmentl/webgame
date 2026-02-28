@@ -80,8 +80,6 @@ canvas{
 <div class="controls">
 <button id="startBtn" class="btn-start">开始</button>
 <button id="pauseBtn" class="btn-start">暂停</button>
-<button id="continueBtn" class="btn-start">继续</button>
-<button id="restartBtn" class="btn-start">重新开始</button>
 </div>
 <div id="result" class="result"></div>
 <canvas id="game"></canvas>
@@ -94,8 +92,6 @@ const ctx = canvas.getContext("2d");
 const scoreEl = document.getElementById("score");
 const startBtn = document.getElementById("startBtn");
 const pauseBtn = document.getElementById("pauseBtn");
-const continueBtn = document.getElementById("continueBtn");
-const restartBtn = document.getElementById("restartBtn");
 const resultEl = document.getElementById("result");
 
 const GRID = 20;
@@ -327,35 +323,30 @@ function endGame(type){
     updateControls();
 }
 
-function pauseGame(){
-    if(!started || !running || gameOver) return;
-    running = false;
-    if(resultEl) resultEl.textContent = "已暂停";
-    updateControls();
-}
-
-function continueGame(){
-    if(!started || running || gameOver) return;
-    running = true;
-    if(resultEl) resultEl.textContent = "";
-    updateControls();
-}
-
-function restartGame(){
+function startOrRestartGame(){
     startGame();
 }
 
-function updateControls(){
-    startBtn.disabled = started;
-    pauseBtn.disabled = !started || !running || gameOver;
-    continueBtn.disabled = !started || running || gameOver;
-    restartBtn.disabled = !started;
+function togglePauseContinue(){
+    if(!started || gameOver) return;
+    if(running){
+        running = false;
+        if(resultEl) resultEl.textContent = "已暂停";
+    }else{
+        running = true;
+        if(resultEl) resultEl.textContent = "";
+    }
+    updateControls();
 }
 
-startBtn.addEventListener("click", startGame);
-pauseBtn.addEventListener("click", pauseGame);
-continueBtn.addEventListener("click", continueGame);
-restartBtn.addEventListener("click", restartGame);
+function updateControls(){
+    startBtn.textContent = started ? "重新开始" : "开始";
+    pauseBtn.textContent = running ? "暂停" : "继续";
+    pauseBtn.disabled = !started || gameOver;
+}
+
+startBtn.addEventListener("click", startOrRestartGame);
+pauseBtn.addEventListener("click", togglePauseContinue);
 </script>
 </body>
 </html>
