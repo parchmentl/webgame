@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>万年历</title>
+
+<style>
+body{
+    margin:0;
+    min-height:100vh;
+    background:radial-gradient(circle at top, #1f2430 0%, #05070b 70%);
+    color:#f5f5f5;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    padding:20px;
+}
+
+.container{
+    background:rgba(14,18,26,.9);
+    border-radius:18px;
+    box-shadow:0 18px 40px rgba(0,0,0,.6);
+    backdrop-filter:blur(10px);
+    padding:24px;
+    max-width:900px;
+    width:100%;
+}
+
+h1{
+    margin:0 0 20px;
+    font-size:24px;
+    text-align:center;
+}
+
+.controls{
+    display:flex;
+    gap:12px;
+    justify-content:center;
+    align-items:center;
+    margin-bottom:20px;
+    flex-wrap:wrap;
+}
+
+input, button{
+    padding:8px 12px;
+    border-radius:8px;
+    border:1px solid #3a4156;
+    background:#181c27;
+    color:#f5f5f5;
+    font-size:14px;
+}
+
+button{
+    cursor:pointer;
+    transition:background .2s;
+}
+
+button:hover{
+    background:#232938;
+}
+
+.calendar-grid{
+    display:grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap:8px;
+    margin-bottom:24px;
+}
+
+.header-cell{
+    text-align:center;
+    font-weight:700;
+    font-size:13px;
+    color:#a0a4b0;
+    padding:8px 0;
+}
+
+.day-cell{
+    aspect-ratio:1;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    border-radius:8px;
+    font-size:14px;
+    cursor:pointer;
+    transition:background .2s;
+    position:relative;
+}
+
+.day-cell:hover{
+    background:rgba(255,255,255,0.08);
+}
+
+.day-cell.today{
+    background:rgba(79,242,139,0.15);
+    color:#53f28b;
+    font-weight:700;
+}
+
+.day-cell.other-month{
+    color:#777c88;
+}
+
+.lunar{
+    position:absolute;
+    bottom:2px;
+    right:4px;
+    font-size:10px;
+    color:#777c88;
+}
+
+.info{
+    text-align:center;
+    margin-top:16px;
+    font-size:13px;
+    color:#a0a4b0;
+}
+
+@media (max-width: 600px){
+    .controls{
+        flex-direction:column;
+    }
+    .calendar-grid{
+        gap:4px;
+    }
+    .day-cell{
+        font-size:12px;
+    }
+}
+</style>
+</head>
+<body>
+
+<div class="container">
+  <h1>万年历</h1>
+
+  <div class="controls">
+    <input type="number" id="yearInput" placeholder="年份" min="1900" max="2100">
+    <input type="month" id="monthInput">
+    <button onclick="goToday()">今天</button>
+    <button onclick="prevMonth()">上月</button>
+    <button onclick="nextMonth()">下月</button>
+  </div>
+
+  <div class="calendar-grid" id="calendar"></div>
+
+  <div class="info" id="info"></div>
+</div>
+
+<script>
+const WEEKDAYS = ['日','一','二','三','四','五','六'];
+const LUNAR_INFO = {}; // 简化版，仅作演示
+
+let currentYear = new Date().getFullYear();
+let currentMonth = new Date().getMonth() + 1;
+
+function init() {
+    const today = new Date();
+    document.getElementById('yearInput').value = currentYear;
+    document.getElementById('monthInput').value = `${String(currentMonth).padStart(2, '0')}`;
+    renderCalendar();
+}
+
+function goToday() {
+    const today = new Date();
+    currentYear = today.getFullYear();
+    currentMonth = today.getMonth() + 1;
+    document.getElementById('yearInput').value = currentYear;
+    document.getElementById('monthInput').value = `${String(currentMonth).padStart(2, '0')}`;
+    renderCalendar();
+}
+
+function prevMonth() {
+    currentMonth--;
+    if (currentMonth < 1) {
+        currentMonth = 12;
+        currentYear--;
+    }
+    updateInputs();
+    renderCalendar();
+}
+
+function nextMonth() {
+    currentMonth++;
+    if (currentMonth > 12) {
+        currentMonth = 1;
+        currentYear++;
+    }
+    updateInputs();
+    renderCalendar();
+}
+
+function updateInputs() {
+    document.getElementById('yearInput').value = currentYear;
+    document.getElementById('monthInput').value = `${String(currentMonth).padStart(2, '0')}`;
+}
+
+function renderCalendar() {
+    const firstDay = new Date(currentYear, currentMonth - 1, 1).getDay();
+    const daysInMonth = new Date(currentYear, currentMonth, 0).getDate();
+    const daysInPrevMonth = new Date(currentYear, currentMonth - 1, 0).getDate();
+    const today = new Date();
+    const isCurrentMonth = today.getFullYear() === currentYear && today.getMonth() + 1 === currentMonth;
+    const todayDate = today.getDate();
+
+    let html = '';
+    
+    // 星期标题
+    WEEKDAYS.forEach(day => {
+        html += `<div class="header-cell">${day}</div>`;
+    });
+
+    // 上月尾部
+    for (let i = firstDay - 1; i >= 0; i--) {
+        html += `<div class="day-cell other-month">${daysInPrevMonth - i}</div>`;
+    }
+
+    // 当月日期
+    for (let day = 1; day <= daysInMonth; day++) {
+        const isToday = isCurrentMonth && day === todayDate;
+        html += `<div class="day-cell ${isToday ? 'today' : ''}" onclick="selectDate(${day})">${day}<span class="lunar">${getLunarDay(day)}</span></div>`;
+    }
+
+    // 下月开始
+    const totalCells = firstDay + daysInMonth;
+    const nextMonthDays = totalCells % 7 === 0 ? 0 : 7 - (totalCells % 7);
+    for (let day = 1; day <= nextMonthDays; day++) {
+        html += `<div class="day-cell other-month">${day}</div>`;
+    }
+
+    document.getElementById('calendar').innerHTML = html;
+    updateInfo();
+}
+
+function getLunarDay(day) {
+    // 简化示例：初一、十五等
+    if (day === 1) return '初一';
+    if (day === 15) return '十五';
+    return '';
+}
+
+function selectDate(day) {
+    document.getElementById('info').textContent = `${currentYear}年${currentMonth}月${day}日`;
+}
+
+function updateInfo() {
+    document.getElementById('info').textContent = `${currentYear}年${currentMonth}月`;
+}
+
+// 输入事件
+document.getElementById('yearInput').addEventListener('change', (e) => {
+    currentYear = parseInt(e.target.value) || new Date().getFullYear();
+    renderCalendar();
+});
+
+document.getElementById('monthInput').addEventListener('change', (e) => {
+    currentMonth = parseInt(e.target.value.split('-')[1]) || 1;
+    renderCalendar();
+});
+
+init();
+</script>
+
+</body>
+</html>
