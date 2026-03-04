@@ -1,5 +1,5 @@
 const CONFIG = {
-  VERSION: 'v1.6.4 · AI: 开局优化+中盘强化'
+  VERSION: 'v1.6.5 · AI: 开局优化+中盘强化'
 };
 
 const SIZE = 15;
@@ -20,6 +20,48 @@ const AI_TIME_LIMIT = 3000; // 毫秒
 let aiStartTime = 0;
 let aiTimedOut = false;
 
+let zobrist = null;
+let hashLo = 0;
+let hashHi = 0;
+let tt = new Map();
+let ttHits = 0;
+let seed = 88675123;
+
+function randU32() {
+  seed ^= seed << 13;
+  seed ^= seed >>> 17;
+  seed ^= seed << 5;
+  return seed >>> 0;
+}
+
+function initZobrist() {
+  zobrist = Array.from({ length: SIZE }, () => Array.from({ length: SIZE }, () => [
+    [0, 0],
+    [randU32(), randU32()],
+    [randU32(), randU32()]
+  ]));
+}
+
+function hashKey() {
+  return (BigInt(hashHi) << 32n) | BigInt(hashLo);
+}
+
+function applyHash(r, c, who) {
+  const z = zobrist[r][c][who];
+  hashLo = (hashLo ^ z[0]) >>> 0;
+  hashHi = (hashHi ^ z[1]) >>> 0;
+}
+
+function makeMove(r, c, who) {
+  board[r][c] = who;
+  applyHash(r, c, who);
+}
+
+function unmakeMove(r, c, who) {
+  applyHash(r, c, who);
+  board[r][c] = 0;
+}
+
 let cell = 0;
 let offset = 0;
 let board = [];
@@ -27,17 +69,18 @@ let current = HUMAN; // 当前执子方
 let gameOver = false;
 let moves = 0;
 let lastMove = null; // 记录最后一步落子位置
-let transpositionTable = {}; // 置换表：缓存计算过的局面
-let tableHits = 0;  // 置换表命中次数（调试用）
 
 function init() {
+  if (!zobrist) initZobrist();
   board = Array.from({ length: SIZE }, () => Array(SIZE).fill(0));
   current = HUMAN;
   gameOver = false;
   moves = 0;
   lastMove = null;
-  transpositionTable = {}; // 清空置换表
-  tableHits = 0;
+  hashLo = 0;
+  hashHi = 0;
+  tt = new Map();
+  ttHits = 0;
   if (versionEl) {
     versionEl.textContent = CONFIG.VERSION;
   }
@@ -262,8 +305,6 @@ function localScore(r, c, who) {
 }
 
 function evaluateBoard() {
-  if (hasWin(AI)) return 1e9;
-  if (hasWin(HUMAN)) return -1e9;
   let scoreAI = 0;
   let scoreHuman = 0;
   for (let r = 0; r < SIZE; r++) {
@@ -278,63 +319,82 @@ function evaluateBoard() {
   return scoreAI - scoreHuman;
 }
 
-// 生成棋盘哈希值，用于置换表
-function boardHash() {
-  let hash = '';
-  for (let r = 0; r < SIZE; r++) {
-    for (let c = 0; c < SIZE; c++) {
-      hash += board[r][c];
-    }
-  }
-  return hash;
-}
-
-function alphaBeta(depth, alpha, beta, player) {
+function alphaBeta(depth, alpha, beta, player, lastR, lastC, lastWho) {
   // 超时检测：如果已经耗时过长，就快速返回当前评估值并设置标志
   if (!aiTimedOut && Date.now() - aiStartTime > AI_TIME_LIMIT) {
     aiTimedOut = true;
     return evaluateBoard();
   }
 
-  // 检查置换表
-  const hash = boardHash();
-  const key = `${hash}_${depth}_${player}`;
-  if (transpositionTable[key] !== undefined) {
-    tableHits++;
-    return transpositionTable[key];
+  if (lastWho && checkWin(lastR, lastC, lastWho)) {
+    return lastWho === AI ? 1e9 : -1e9;
+  }
+
+  const key = hashKey();
+  const entry = tt.get(key);
+  if (entry && entry.depth >= depth) {
+    ttHits++;
+    if (entry.flag === 0) return entry.value;
+    if (entry.flag === 1 && entry.value >= beta) return entry.value;
+    if (entry.flag === 2 && entry.value <= alpha) return entry.value;
   }
 
   if (depth === 0) return evaluateBoard();
-  if (hasWin(AI) || hasWin(HUMAN)) return evaluateBoard();
 
-  const moves = generateCandidates();
+  let moves = generateCandidates();
   if (moves.length === 0) return 0;
 
+  const opponent = player === AI ? HUMAN : AI;
+  const ttBest = entry && entry.best ? entry.best : null;
+  moves = moves.map(({ r, c }) => {
+    const p = localScore(r, c, player) + localScore(r, c, opponent) * 0.85;
+    return { r, c, p };
+  }).sort((a, b) => b.p - a.p);
+  if (ttBest) {
+    const idx = moves.findIndex(m => m.r === ttBest.r && m.c === ttBest.c);
+    if (idx > 0) {
+      const m = moves[idx];
+      moves.splice(idx, 1);
+      moves.unshift(m);
+    }
+  }
+
   let bestValue;
+  let bestMove = null;
+  const alphaOrig = alpha;
+  const betaOrig = beta;
   if (player === AI) {
     bestValue = -Infinity;
     for (const { r, c } of moves) {
-      board[r][c] = AI;
-      const score = alphaBeta(depth - 1, alpha, beta, HUMAN);
-      board[r][c] = 0;
+      makeMove(r, c, AI);
+      let score;
+      if (checkWin(r, c, AI)) score = 1e9;
+      else score = alphaBeta(depth - 1, alpha, beta, HUMAN, r, c, AI);
+      unmakeMove(r, c, AI);
       if (score > bestValue) bestValue = score;
+      if (score === bestValue) bestMove = { r, c };
       if (bestValue > alpha) alpha = bestValue;
       if (alpha >= beta) break;
     }
   } else {
     bestValue = Infinity;
     for (const { r, c } of moves) {
-      board[r][c] = HUMAN;
-      const score = alphaBeta(depth - 1, alpha, beta, AI);
-      board[r][c] = 0;
+      makeMove(r, c, HUMAN);
+      let score;
+      if (checkWin(r, c, HUMAN)) score = -1e9;
+      else score = alphaBeta(depth - 1, alpha, beta, AI, r, c, HUMAN);
+      unmakeMove(r, c, HUMAN);
       if (score < bestValue) bestValue = score;
+      if (score === bestValue) bestMove = { r, c };
       if (bestValue < beta) beta = bestValue;
       if (alpha >= beta) break;
     }
   }
 
-  // 存入置换表
-  transpositionTable[key] = bestValue;
+  let flag = 0;
+  if (bestValue <= alphaOrig) flag = 2;
+  else if (bestValue >= betaOrig) flag = 1;
+  tt.set(key, { depth, value: bestValue, flag, best: bestMove });
   return bestValue;
 }
 
@@ -347,7 +407,7 @@ function getThreats(player) {
       if (board[r][c] !== 0) continue;
       
       // 试下这一步，检查是否形成威胁
-      board[r][c] = player;
+      makeMove(r, c, player);
       let hasThree = false;
       let hasFour = false;
       
@@ -375,7 +435,7 @@ function getThreats(player) {
           if (open === 2) hasThree = true;
         }
       }
-      board[r][c] = 0;
+      unmakeMove(r, c, player);
       
       if (hasThree || hasFour) {
         threats.push({ r, c, type: hasFour ? 'four' : 'three' });
@@ -397,7 +457,7 @@ function canVCT(player, depth, mustWin) {
   
   // 对每个威胁位置，试着走
   for (const { r, c } of threats) {
-    board[r][c] = player;
+    makeMove(r, c, player);
     const opponent = player === AI ? HUMAN : AI;
     
     // 对手必须防守这个威胁
@@ -405,25 +465,25 @@ function canVCT(player, depth, mustWin) {
     
     if (defenses.length === 0) {
       // 对手无法防守，我方胜
-      board[r][c] = 0;
+      unmakeMove(r, c, player);
       return true;
     }
     
     // 检查是否存在一个防守后，我们还能继续威胁
     let canContinue = false;
     for (const { r: dr, c: dc } of defenses.slice(0, 3)) { // 只检查前3个防守
-      board[dr][dc] = opponent;
+      makeMove(dr, dc, opponent);
       
       // 继续递归检查
       if (canVCT(player, depth + 1, true)) {
         canContinue = true;
       }
       
-      board[dr][dc] = 0;
+      unmakeMove(dr, dc, opponent);
       if (canContinue) break;
     }
     
-    board[r][c] = 0;
+    unmakeMove(r, c, player);
     if (canContinue) return true;
   }
   
@@ -433,9 +493,9 @@ function canVCT(player, depth, mustWin) {
 // 寻找能发动 VCT 的着法
 function findVCTMove(candidates) {
   for (const { r, c } of candidates) {
-    board[r][c] = AI;
+    makeMove(r, c, AI);
     const isVCT = canVCT(AI, 0, false);
-    board[r][c] = 0;
+    unmakeMove(r, c, AI);
     
     if (isVCT) {
       return { r, c };
@@ -448,7 +508,7 @@ function doMove(r, c) {
   if (gameOver) return;
   if (board[r][c] !== 0) return;
 
-  board[r][c] = current;
+  makeMove(r, c, current);
   lastMove = { r, c }; // 记录本步落子位置
   moves++;
   draw();
@@ -512,12 +572,12 @@ function findBestMove() {
 
   // 唯一防守：对手是否有立即获胜位置
   for (const { r, c } of candidates) {
-    board[r][c] = HUMAN;
+    makeMove(r, c, HUMAN);
     if (checkWin(r, c, HUMAN)) {
-      board[r][c] = 0;
+      unmakeMove(r, c, HUMAN);
       return { r, c };
     }
-    board[r][c] = 0;
+    unmakeMove(r, c, HUMAN);
   }
 
   // 进攻搜索
@@ -544,9 +604,9 @@ function findBestMove() {
         aiTimedOut = true;
         break;
       }
-      board[r][c] = AI;
-      const score = alphaBeta(depth - 1, -Infinity, Infinity, HUMAN);
-      board[r][c] = 0;
+      makeMove(r, c, AI);
+      const score = checkWin(r, c, AI) ? 1e9 : alphaBeta(depth - 1, -Infinity, Infinity, HUMAN, r, c, AI);
+      unmakeMove(r, c, AI);
       if (aiTimedOut) break;
       if (score > localBestScore) {
         localBestScore = score;
@@ -575,125 +635,6 @@ function findBestMove() {
   }
   return bestMoves[Math.floor(Math.random() * bestMoves.length)];
 }
-
-      let count2 = 0, open2 = 0;
-      rr = r - dr; cc = c - dc;
-      while (rr >= 0 && rr < SIZE && cc >= 0 && cc < SIZE && board[rr][cc] === HUMAN) {
-        count2++; rr -= dr; cc -= dc;
-      }
-      if (rr >= 0 && rr < SIZE && cc >= 0 && cc < SIZE && board[rr][cc] === 0) open2 = 1;
-
-      if (count1 + count2 === 3 && open1 === 1 && open2 === 1) {
-        isActiveThreat = true;
-        break outer;
-      }
-    }
-    board[r][c] = 0;
-    if (isActiveThreat) {
-      activeThreatMoves.push({ r, c });
-    }
-  }
-
-  if (activeThreatMoves.length > 0) {
-    return activeThreatMoves[Math.floor(Math.random() * activeThreatMoves.length)];
-  }
-
-  // 第三层防守：检查对手的关键活二（两端开放的活二）
-  let criticalTwoMoves = [];
-  for (const { r, c } of candidates) {
-    board[r][c] = HUMAN;
-    let hasCriticalTwo = false;
-    outer2: for (const [dr, dc] of [[1, 0], [0, 1], [1, 1], [1, -1]]) {
-      let count1 = 0, open1 = 0;
-      let rr = r + dr, cc = c + dc;
-      while (rr >= 0 && rr < SIZE && cc >= 0 && cc < SIZE && board[rr][cc] === HUMAN) {
-        count1++; rr += dr; cc += dc;
-      }
-      if (rr >= 0 && rr < SIZE && cc >= 0 && cc < SIZE && board[rr][cc] === 0) open1 = 1;
-
-      let count2 = 0, open2 = 0;
-      rr = r - dr; cc = c - dc;
-      while (rr >= 0 && rr < SIZE && cc >= 0 && cc < SIZE && board[rr][cc] === HUMAN) {
-        count2++; rr -= dr; cc -= dc;
-      }
-      if (rr >= 0 && rr < SIZE && cc >= 0 && cc < SIZE && board[rr][cc] === 0) open2 = 1;
-
-      // 关键活二：两端都开放的活二
-      if (count1 + count2 === 2 && open1 === 1 && open2 === 1) {
-        hasCriticalTwo = true;
-        break outer2;
-      }
-    }
-    board[r][c] = 0;
-    if (hasCriticalTwo) {
-      criticalTwoMoves.push({ r, c });
-    }
-  }
-
-  if (criticalTwoMoves.length > 0) {
-    return criticalTwoMoves[Math.floor(Math.random() * criticalTwoMoves.length)];
-  }
-
-  // 进攻逻辑：搜索最佳落子点
-  let bestScore = -Infinity;
-  let bestMoves = [];
-
-  // 对候选着法进行威胁排序：优先考虑威胁大的着法
-  const rankedCandidates = candidates.map(({ r, c }) => {
-    const aiThreat = localScore(r, c, AI);  // 己方进攻威胁
-    const humanThreat = localScore(r, c, HUMAN) * 1.2;  // 对手防守威胁（权重更高）
-    return { r, c, priority: aiThreat + humanThreat };
-  }).sort((a, b) => b.priority - a.priority);
-
-  // 使用迭代加深搜索，允许利用整个时间限制获得最优深度结果
-  aiStartTime = Date.now();
-  aiTimedOut = false;
-  let overallBest = null;
-
-  for (let depth = 1; depth <= MAX_DEPTH; depth++) {
-    if (Date.now() - aiStartTime > AI_TIME_LIMIT) break;
-    let localBestScore = -Infinity;
-    let localBestMoves = [];
-
-    for (const { r, c } of rankedCandidates) {
-      if (Date.now() - aiStartTime > AI_TIME_LIMIT) {
-        aiTimedOut = true;
-        break;
-      }
-      board[r][c] = AI;
-      const score = alphaBeta(depth - 1, -Infinity, Infinity, HUMAN);
-      board[r][c] = 0;
-      if (aiTimedOut) break;
-      if (score > localBestScore) {
-        localBestScore = score;
-        localBestMoves = [{ r, c }];
-      } else if (score === localBestScore) {
-        localBestMoves.push({ r, c });
-      }
-    }
-
-    if (!aiTimedOut && localBestMoves.length > 0) {
-      overallBest = localBestMoves[Math.floor(Math.random() * localBestMoves.length)];
-      // preparation for next iteration: continue deeper if time remains
-      bestScore = localBestScore;
-      bestMoves = localBestMoves;
-    }
-  }
-
-  if (overallBest) {
-    return overallBest;
-  }
-
-  if (bestMoves.length === 0) {
-    // 超时或没有搜索出结果时退回到优先级最高的候选点
-    if (rankedCandidates && rankedCandidates.length) {
-      return { r: rankedCandidates[0].r, c: rankedCandidates[0].c };
-    }
-    return candidates[0];
-  }
-  return bestMoves[Math.floor(Math.random() * bestMoves.length)];
-}
-
 // Event listeners
 canvas.addEventListener('click', e => placeAt(e.clientX, e.clientY));
 canvas.addEventListener('touchend', e => {
