@@ -1,5 +1,5 @@
 const CONFIG = {
-  VERSION: 'v1.6.0 · AI: VCT/VCF 连续威胁'
+  VERSION: 'v1.6.1 · AI: 2秒思考限制'
 };
 
 const SIZE = 15;
@@ -11,7 +11,12 @@ const versionEl = document.getElementById('version');
 
 const HUMAN = 1; // 玩家执黑
 const AI = 2;    // AI 执白
-const MAX_DEPTH = 7; // 搜索深度（奇数：我方-对方-我方）
+const MAX_DEPTH = 5; // 搜索深度（奇数：我方-对方-我方）
+
+// AI 时间控制：思考不能超过 2 秒
+const AI_TIME_LIMIT = 3000; // 毫秒
+let aiStartTime = 0;
+let aiTimedOut = false;
 
 let cell = 0;
 let offset = 0;
@@ -283,6 +288,12 @@ function boardHash() {
 }
 
 function alphaBeta(depth, alpha, beta, player) {
+  // 超时检测：如果已经耗时过长，就快速返回当前评估值并设置标志
+  if (!aiTimedOut && Date.now() - aiStartTime > AI_TIME_LIMIT) {
+    aiTimedOut = true;
+    return evaluateBoard();
+  }
+
   // 检查置换表
   const hash = boardHash();
   const key = `${hash}_${depth}_${player}`;
@@ -584,10 +595,19 @@ function findBestMove() {
     return { r, c, priority: aiThreat + humanThreat };
   }).sort((a, b) => b.priority - a.priority);
 
+  aiStartTime = Date.now();
+  aiTimedOut = false;
+
   for (const { r, c } of rankedCandidates) {
+    // 每次循环检查是否超时
+    if (Date.now() - aiStartTime > AI_TIME_LIMIT) {
+      aiTimedOut = true;
+      break;
+    }
     board[r][c] = AI;
     const score = alphaBeta(MAX_DEPTH - 1, -Infinity, Infinity, HUMAN);
     board[r][c] = 0;
+    if (aiTimedOut) break;
     if (score > bestScore) {
       bestScore = score;
       bestMoves = [{ r, c }];
@@ -596,7 +616,13 @@ function findBestMove() {
     }
   }
 
-  if (bestMoves.length === 0) return candidates[0];
+  if (bestMoves.length === 0) {
+    // 超时或没有搜索出结果时退回到优先级最高的候选点
+    if (rankedCandidates && rankedCandidates.length) {
+      return { r: rankedCandidates[0].r, c: rankedCandidates[0].c };
+    }
+    return candidates[0];
+  }
   return bestMoves[Math.floor(Math.random() * bestMoves.length)];
 }
 
