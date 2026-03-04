@@ -1,5 +1,5 @@
 const CONFIG = {
-  VERSION: 'v1.3.1 · AI: 深度搜索 + 智能防守'
+  VERSION: 'v1.5.0 · AI: 置换表 + 优化不会'
 };
 
 const SIZE = 15;
@@ -11,7 +11,7 @@ const versionEl = document.getElementById('version');
 
 const HUMAN = 1; // 玩家执黑
 const AI = 2;    // AI 执白
-const MAX_DEPTH = 5; // 搜索深度（奇数：我方-对方-我方）
+const MAX_DEPTH = 7; // 搜索深度（奇数：我方-对方-我方）
 
 let cell = 0;
 let offset = 0;
@@ -20,6 +20,8 @@ let current = HUMAN; // 当前执子方
 let gameOver = false;
 let moves = 0;
 let lastMove = null; // 记录最后一步落子位置
+let transpositionTable = {}; // 置换表：缓存计算过的局面
+let tableHits = 0;  // 置换表命中次数（调试用）
 
 function init() {
   board = Array.from({ length: SIZE }, () => Array(SIZE).fill(0));
@@ -27,6 +29,8 @@ function init() {
   gameOver = false;
   moves = 0;
   lastMove = null;
+  transpositionTable = {}; // 清空置换表
+  tableHits = 0;
   if (versionEl) {
     versionEl.textContent = CONFIG.VERSION;
   }
@@ -237,14 +241,14 @@ function localScore(r, c, who) {
     // 改进的评分：同时考虑连续子数、活度和防守价值
     if (total >= 4) score += 500000;  // 已经能赢
     else if (total === 3) {
-      if (openEnds === 2) score += 100000;  // 活三（两端都开放）- 大幅提高权重
-      else if (openEnds === 1) score += 12000; // 冲三
+      if (openEnds === 2) score += 200000;  // 活三 - 进一步提高
+      else if (openEnds === 1) score += 15000; // 冲三
     } else if (total === 2) {
-      if (openEnds === 2) score += 15000;   // 活二 - 提高权重
-      else if (openEnds === 1) score += 800; // 冲二
+      if (openEnds === 2) score += 50000;   // 活二 - 大幅提高
+      else if (openEnds === 1) score += 2000; // 冲二 - 大幅提高
     } else if (total === 1) {
-      if (openEnds === 2) score += 500;     // 单子两头开
-      else if (openEnds === 1) score += 80;  // 单子一端开
+      if (openEnds === 2) score += 1000;     // 单子两头开
+      else if (openEnds === 1) score += 100;  // 单子一端开
     }
   }
   return score;
@@ -267,36 +271,58 @@ function evaluateBoard() {
   return scoreAI - scoreHuman;
 }
 
+// 生成棋盘哈希值，用于置换表
+function boardHash() {
+  let hash = '';
+  for (let r = 0; r < SIZE; r++) {
+    for (let c = 0; c < SIZE; c++) {
+      hash += board[r][c];
+    }
+  }
+  return hash;
+}
+
 function alphaBeta(depth, alpha, beta, player) {
+  // 检查置换表
+  const hash = boardHash();
+  const key = `${hash}_${depth}_${player}`;
+  if (transpositionTable[key] !== undefined) {
+    tableHits++;
+    return transpositionTable[key];
+  }
+
   if (depth === 0) return evaluateBoard();
   if (hasWin(AI) || hasWin(HUMAN)) return evaluateBoard();
 
   const moves = generateCandidates();
   if (moves.length === 0) return 0;
 
+  let bestValue;
   if (player === AI) {
-    let value = -Infinity;
+    bestValue = -Infinity;
     for (const { r, c } of moves) {
       board[r][c] = AI;
       const score = alphaBeta(depth - 1, alpha, beta, HUMAN);
       board[r][c] = 0;
-      if (score > value) value = score;
-      if (value > alpha) alpha = value;
+      if (score > bestValue) bestValue = score;
+      if (bestValue > alpha) alpha = bestValue;
       if (alpha >= beta) break;
     }
-    return value;
   } else {
-    let value = Infinity;
+    bestValue = Infinity;
     for (const { r, c } of moves) {
       board[r][c] = HUMAN;
       const score = alphaBeta(depth - 1, alpha, beta, AI);
       board[r][c] = 0;
-      if (score < value) value = score;
-      if (value < beta) beta = value;
+      if (score < bestValue) bestValue = score;
+      if (bestValue < beta) beta = bestValue;
       if (alpha >= beta) break;
     }
-    return value;
   }
+
+  // 存入置换表
+  transpositionTable[key] = bestValue;
+  return bestValue;
 }
 
 function doMove(r, c) {
@@ -365,7 +391,7 @@ function findBestMove() {
   }
 
   // 第二层防守：检查对手是否有"活三"威胁（两端都开放的三子）
-  let defensiveMoves = [];
+  let activeThreatMoves = [];
   for (const { r, c } of candidates) {
     board[r][c] = HUMAN;
     let isActiveThreat = false;
@@ -391,20 +417,62 @@ function findBestMove() {
     }
     board[r][c] = 0;
     if (isActiveThreat) {
-      defensiveMoves.push({ r, c });
+      activeThreatMoves.push({ r, c });
     }
   }
 
-  // 如果有活三威胁，优先防守
-  if (defensiveMoves.length > 0) {
-    return defensiveMoves[Math.floor(Math.random() * defensiveMoves.length)];
+  if (activeThreatMoves.length > 0) {
+    return activeThreatMoves[Math.floor(Math.random() * activeThreatMoves.length)];
+  }
+
+  // 第三层防守：检查对手的关键活二（两端开放的活二）
+  let criticalTwoMoves = [];
+  for (const { r, c } of candidates) {
+    board[r][c] = HUMAN;
+    let hasCriticalTwo = false;
+    outer2: for (const [dr, dc] of [[1, 0], [0, 1], [1, 1], [1, -1]]) {
+      let count1 = 0, open1 = 0;
+      let rr = r + dr, cc = c + dc;
+      while (rr >= 0 && rr < SIZE && cc >= 0 && cc < SIZE && board[rr][cc] === HUMAN) {
+        count1++; rr += dr; cc += dc;
+      }
+      if (rr >= 0 && rr < SIZE && cc >= 0 && cc < SIZE && board[rr][cc] === 0) open1 = 1;
+
+      let count2 = 0, open2 = 0;
+      rr = r - dr; cc = c - dc;
+      while (rr >= 0 && rr < SIZE && cc >= 0 && cc < SIZE && board[rr][cc] === HUMAN) {
+        count2++; rr -= dr; cc -= dc;
+      }
+      if (rr >= 0 && rr < SIZE && cc >= 0 && cc < SIZE && board[rr][cc] === 0) open2 = 1;
+
+      // 关键活二：两端都开放的活二
+      if (count1 + count2 === 2 && open1 === 1 && open2 === 1) {
+        hasCriticalTwo = true;
+        break outer2;
+      }
+    }
+    board[r][c] = 0;
+    if (hasCriticalTwo) {
+      criticalTwoMoves.push({ r, c });
+    }
+  }
+
+  if (criticalTwoMoves.length > 0) {
+    return criticalTwoMoves[Math.floor(Math.random() * criticalTwoMoves.length)];
   }
 
   // 进攻逻辑：搜索最佳落子点
   let bestScore = -Infinity;
   let bestMoves = [];
 
-  for (const { r, c } of candidates) {
+  // 对候选着法进行威胁排序：优先考虑威胁大的着法
+  const rankedCandidates = candidates.map(({ r, c }) => {
+    const aiThreat = localScore(r, c, AI);  // 己方进攻威胁
+    const humanThreat = localScore(r, c, HUMAN) * 1.2;  // 对手防守威胁（权重更高）
+    return { r, c, priority: aiThreat + humanThreat };
+  }).sort((a, b) => b.priority - a.priority);
+
+  for (const { r, c } of rankedCandidates) {
     board[r][c] = AI;
     const score = alphaBeta(MAX_DEPTH - 1, -Infinity, Infinity, HUMAN);
     board[r][c] = 0;
