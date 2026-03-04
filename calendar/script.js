@@ -32,6 +32,21 @@ const CalendarData = {
     '2025-10-4': '国庆节', '2025-10-5': '国庆节', '2025-10-6': '国庆节', '2025-10-7': '国庆节'
   },
 
+  // 跨年份通用公历节日兜底
+  fixedSolarHolidays: {
+    '1-1': '元旦',
+    '5-1': '劳动节',
+    '10-1': '国庆节'
+  },
+
+  lunarFormatter: (() => {
+    try {
+      return new Intl.DateTimeFormat('zh-CN-u-ca-chinese', { month: 'long', day: 'numeric' });
+    } catch (error) {
+      return null;
+    }
+  })(),
+
   // 完整农历数据（示例，仅部分月份）
   lunarMonths: {
     2024: {
@@ -69,27 +84,17 @@ const CalendarData = {
     yi: ['开业', '嫁娶', '出行', '搬家', '入宅', '动土', '祈福', '祭祀'],
     ji: ['破土', '安床', '开仓', '作灶', '纳畜', '交易', '上梁'],
     zodiac: ['鼠', '牛', '虎', '兔', '龙', '蛇', '马', '羊', '猴', '鸡', '狗', '猪'],
-    constellations: [
-      { name: '水瓶座', dates: [1, 19, 20] },
-      { name: '双鱼座', dates: [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18] },
-      { name: '白羊座', dates: [3, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31] },
-      { name: '金牛座', dates: [4, 23, 24, 25, 26, 27, 28, 29, 30, 31] },
-      { name: '双子座', dates: [5, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31] },
-      { name: '巨蟹座', dates: [6, 22, 23, 24, 25, 26, 27, 28, 29, 30] },
-      { name: '狮子座', dates: [7, 23, 24, 25, 26, 27, 28, 29, 30, 31] },
-      { name: '处女座', dates: [8, 23, 24, 25, 26, 27, 28, 29, 30] },
-      { name: '天秤座', dates: [9, 23, 24, 25, 26, 27, 28, 29, 30] },
-      { name: '天蝎座', dates: [10, 23, 24, 25, 26, 27, 28, 29, 30, 31] },
-      { name: '射手座', dates: [11, 23, 24, 25, 26, 27, 28, 29, 30] },
-      { name: '摩羯座', dates: [12, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31] }
-    ],
+    constellations: ['摩羯座', '水瓶座', '双鱼座', '白羊座', '金牛座', '双子座', '巨蟹座', '狮子座', '处女座', '天秤座', '天蝎座', '射手座', '摩羯座'],
+    constellationCutoffDays: [20, 19, 21, 20, 21, 22, 23, 23, 23, 24, 23, 22],
 
     getZodiac(year) {
       return this.zodiac[(year - 4) % 12];
     },
 
     getConstellation(month, day) {
-      return this.constellations.find(c => c.dates.includes(day))?.name || '';
+      if (month < 1 || month > 12 || day < 1 || day > 31) return '';
+      const cutoff = this.constellationCutoffDays[month - 1];
+      return day < cutoff ? this.constellations[month - 1] : this.constellations[month];
     },
 
     getAlmanac(year, month, day) {
@@ -102,32 +107,44 @@ const CalendarData = {
   },
 
   getHoliday(year, month, day) {
-    return this.holidays[`${year}-${month}-${day}`] || null;
+    return this.holidays[`${year}-${month}-${day}`] || this.fixedSolarHolidays[`${month}-${day}`] || null;
   },
 
   getLunarDay(year, month, day) {
+    if (this.lunarFormatter) {
+      try {
+        const date = new Date(year, month - 1, day);
+        const parts = this.lunarFormatter.formatToParts(date);
+        const monthText = parts.find(part => part.type === 'month')?.value || '';
+        const dayRaw = (parts.find(part => part.type === 'day')?.value || '').replace(/[日号]/g, '');
+        const dayNumber = Number.parseInt(dayRaw, 10);
+        return {
+          month: monthText,
+          day: Number.isNaN(dayNumber) ? dayRaw : String(dayNumber)
+        };
+      } catch (error) {
+      }
+    }
+
     const yearData = this.lunarMonths[year];
     if (!yearData) return { day: '', month: '' };
-    
-    // 简化：返回农历日期
     return { day: `${day}`, month: yearData[month]?.name || '' };
   },
 
   getLunarDayText(year, month, day) {
     const lunar = this.getLunarDay(year, month, day);
-    if (!lunar.day) return '';
-    // 特殊日期
-    if (lunar.day === '1') return '初一';
-    if (lunar.day === '15') return '十五';
-    return lunar.day;
-  },
-
-  getGanZhi(year, month, day) {
-    // 简化干支计算，仅作示例
-    const offset = (year - 4) % 60;
-    const gan = this.heavenlyStems[Math.floor(offset / 10) % 10];
-    const zhi = this.earthlyBranches[offset % 12];
-    return `${gan}${zhi}`;
+    if (!lunar.day) return { month: '', day: '' };
+    const dayTextMap = {
+      1: '初一', 2: '初二', 3: '初三', 4: '初四', 5: '初五',
+      6: '初六', 7: '初七', 8: '初八', 9: '初九', 10: '初十',
+      11: '十一', 12: '十二', 13: '十三', 14: '十四', 15: '十五',
+      16: '十六', 17: '十七', 18: '十八', 19: '十九', 20: '二十',
+      21: '廿一', 22: '廿二', 23: '廿三', 24: '廿四', 25: '廿五',
+      26: '廿六', 27: '廿七', 28: '廿八', 29: '廿九', 30: '三十'
+    };
+    const dayNumber = Number.parseInt(lunar.day, 10);
+    const dayText = dayTextMap[dayNumber] || lunar.day;
+    return { month: lunar.month, day: dayText };
   },
 
   getSolarTerm(month, day) {
@@ -142,6 +159,7 @@ class Calendar {
     this.currentMonth = new Date().getMonth() + 1;
     this.today = new Date();
     this.weekdays = ['日','一','二','三','四','五','六'];
+    this.selectedDay = null;
     this.init();
   }
 
@@ -154,17 +172,38 @@ class Calendar {
   bindEvents() {
     document.getElementById('yearInput').addEventListener('change', (e) => {
       this.currentYear = parseInt(e.target.value) || this.today.getFullYear();
+      this.updateInputs();
       this.render();
     });
     document.getElementById('monthInput').addEventListener('change', (e) => {
-      this.currentMonth = parseInt(e.target.value.split('-')[1]) || 1;
+      const [year, month] = e.target.value.split('-').map(Number);
+      this.currentYear = year || this.currentYear;
+      this.currentMonth = month || 1;
+      this.updateInputs();
       this.render();
+    });
+
+    const drawerCloseBtn = document.getElementById('drawerCloseBtn');
+    const drawerOverlay = document.getElementById('drawerOverlay');
+    if (drawerCloseBtn) {
+      drawerCloseBtn.addEventListener('click', () => {
+        this.closeDrawer();
+      });
+    }
+    if (drawerOverlay) {
+      drawerOverlay.addEventListener('click', () => {
+        this.closeDrawer();
+      });
+    }
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') this.closeDrawer();
     });
   }
 
   updateInputs() {
     document.getElementById('yearInput').value = this.currentYear;
-    document.getElementById('monthInput').value = `${String(this.currentMonth).padStart(2, '0')}`;
+    document.getElementById('monthInput').value = `${this.currentYear}-${String(this.currentMonth).padStart(2, '0')}`;
   }
 
   goToday() {
@@ -195,9 +234,13 @@ class Calendar {
   }
 
   selectDate(day) {
+    this.selectedDay = day;
+    this.render();
     const almanac = CalendarData.getAlmanac(this.currentYear, this.currentMonth, day);
     const holiday = CalendarData.getHoliday(this.currentYear, this.currentMonth, day);
     const lunar = CalendarData.getLunarDayText(this.currentYear, this.currentMonth, day);
+    const solarTerm = CalendarData.getSolarTerm(this.currentMonth, day);
+    const weekday = this.weekdays[new Date(this.currentYear, this.currentMonth - 1, day).getDay()];
     
     let info = `${this.currentYear}年${this.currentMonth}月${day}日`;
     
@@ -225,7 +268,59 @@ class Calendar {
       info += ` · 忌：${almanac.ji.join('、')}`;
     }
     
-    document.getElementById('info').innerHTML = info;
+    document.getElementById('info').textContent = info;
+    this.renderDrawer({
+      day,
+      weekday,
+      holiday,
+      solarTerm,
+      lunar,
+      almanac
+    });
+    this.openDrawer();
+  }
+
+  renderDrawer(data) {
+    const drawerContent = document.getElementById('drawerContent');
+    if (!drawerContent) return;
+    const headerLine = `${this.currentYear}年${this.currentMonth}月${data.day}日 星期${data.weekday}`;
+    let html = `<div class="drawer-item">${headerLine}</div>`;
+
+    if (data.lunar.month || data.lunar.day) {
+      html += `<div class="drawer-item"><span class="drawer-label">农历：</span>${data.lunar.month}${data.lunar.day}</div>`;
+    }
+    if (data.holiday) {
+      html += `<div class="drawer-item"><span class="drawer-label">节日：</span>${data.holiday}</div>`;
+    }
+    if (data.solarTerm) {
+      html += `<div class="drawer-item"><span class="drawer-label">节气：</span>${data.solarTerm}</div>`;
+    }
+    html += `<div class="drawer-item"><span class="drawer-label">生肖：</span>${data.almanac.zodiac}</div>`;
+    html += `<div class="drawer-item"><span class="drawer-label">星座：</span>${data.almanac.constellation}</div>`;
+    html += `<div class="drawer-item"><span class="drawer-label">宜：</span>${data.almanac.yi.join('、')}</div>`;
+    html += `<div class="drawer-item"><span class="drawer-label">忌：</span>${data.almanac.ji.join('、')}</div>`;
+
+    drawerContent.innerHTML = html;
+  }
+
+  openDrawer() {
+    const drawer = document.getElementById('almanacDrawer');
+    const overlay = document.getElementById('drawerOverlay');
+    if (!drawer || !overlay) return;
+    drawer.classList.add('open');
+    overlay.classList.add('open');
+    drawer.style.transform = 'translateX(0)';
+    drawer.setAttribute('aria-hidden', 'false');
+  }
+
+  closeDrawer() {
+    const drawer = document.getElementById('almanacDrawer');
+    const overlay = document.getElementById('drawerOverlay');
+    if (!drawer || !overlay) return;
+    drawer.classList.remove('open');
+    overlay.classList.remove('open');
+    drawer.style.transform = '';
+    drawer.setAttribute('aria-hidden', 'true');
   }
 
   render() {
@@ -253,20 +348,19 @@ class Calendar {
       const holiday = CalendarData.getHoliday(this.currentYear, this.currentMonth, day);
       const solarTerm = CalendarData.getSolarTerm(this.currentMonth, day);
       const lunar = CalendarData.getLunarDayText(this.currentYear, this.currentMonth, day);
-      const ganZhi = CalendarData.getGanZhi(this.currentYear, this.currentMonth, day);
-      
       let dayClass = 'day-cell';
       if (isToday) dayClass += ' today';
       if (holiday) dayClass += ' holiday';
+      if (day === this.selectedDay) dayClass += ' selected';
       
-      let dayHtml = `<div class="${dayClass}" onclick="calendar.selectDate(${day})">${day}`;
+      let dayHtml = `<div class="${dayClass}" data-day="${day}">${day}`;
       
       // 显示优先级：节日 > 节气 > 农历
       if (holiday) {
         dayHtml += `<span class="holiday">${holiday}</span>`;
       } else if (solarTerm) {
         dayHtml += `<span class="solar-term">${solarTerm}</span>`;
-      } else if (lunar) {
+      } else if (lunar.month || lunar.day) {
         dayHtml += `<div class="lunar-info"><span class="lunar-month">${lunar.month}</span><span class="lunar-day">${lunar.day}</span></div>`;
       }
       
@@ -282,7 +376,18 @@ class Calendar {
     }
 
     document.getElementById('calendar').innerHTML = html;
+    this.bindDayCellEvents();
     this.updateInfo();
+  }
+
+  bindDayCellEvents() {
+    const cells = document.querySelectorAll('.calendar-grid .day-cell[data-day]');
+    cells.forEach((cell) => {
+      cell.addEventListener('click', () => {
+        const day = Number.parseInt(cell.dataset.day || '', 10);
+        if (!Number.isNaN(day)) this.selectDate(day);
+      });
+    });
   }
 
   updateInfo() {
