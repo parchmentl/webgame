@@ -1,5 +1,5 @@
 const CONFIG = {
-  VERSION: 'v1.0.0 · AI: α-β 搜索'
+  VERSION: 'v1.1.0 · AI: α-β 搜索'
 };
 
 const SIZE = 15;
