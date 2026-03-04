@@ -1,5 +1,5 @@
 const CONFIG = {
-  VERSION: 'v1.6.1 · AI: 2秒思考限制'
+  VERSION: 'v1.6.3 · AI: 3秒迭代加深'
 };
 
 const SIZE = 15;
@@ -11,10 +11,12 @@ const versionEl = document.getElementById('version');
 
 const HUMAN = 1; // 玩家执黑
 const AI = 2;    // AI 执白
-const MAX_DEPTH = 5; // 搜索深度（奇数：我方-对方-我方）
+// 搜索深度上限（实际深度由时间与迭代控制，可设为较大值）
+const MAX_DEPTH = 9;
 
-// AI 时间控制：思考不能超过 2 秒
+// AI 时间控制：思考不能超过 3 秒
 const AI_TIME_LIMIT = 3000; // 毫秒
+
 let aiStartTime = 0;
 let aiTimedOut = false;
 
@@ -595,25 +597,43 @@ function findBestMove() {
     return { r, c, priority: aiThreat + humanThreat };
   }).sort((a, b) => b.priority - a.priority);
 
+  // 使用迭代加深搜索，允许利用整个时间限制获得最优深度结果
   aiStartTime = Date.now();
   aiTimedOut = false;
+  let overallBest = null;
 
-  for (const { r, c } of rankedCandidates) {
-    // 每次循环检查是否超时
-    if (Date.now() - aiStartTime > AI_TIME_LIMIT) {
-      aiTimedOut = true;
-      break;
+  for (let depth = 1; depth <= MAX_DEPTH; depth++) {
+    if (Date.now() - aiStartTime > AI_TIME_LIMIT) break;
+    let localBestScore = -Infinity;
+    let localBestMoves = [];
+
+    for (const { r, c } of rankedCandidates) {
+      if (Date.now() - aiStartTime > AI_TIME_LIMIT) {
+        aiTimedOut = true;
+        break;
+      }
+      board[r][c] = AI;
+      const score = alphaBeta(depth - 1, -Infinity, Infinity, HUMAN);
+      board[r][c] = 0;
+      if (aiTimedOut) break;
+      if (score > localBestScore) {
+        localBestScore = score;
+        localBestMoves = [{ r, c }];
+      } else if (score === localBestScore) {
+        localBestMoves.push({ r, c });
+      }
     }
-    board[r][c] = AI;
-    const score = alphaBeta(MAX_DEPTH - 1, -Infinity, Infinity, HUMAN);
-    board[r][c] = 0;
-    if (aiTimedOut) break;
-    if (score > bestScore) {
-      bestScore = score;
-      bestMoves = [{ r, c }];
-    } else if (score === bestScore) {
-      bestMoves.push({ r, c });
+
+    if (!aiTimedOut && localBestMoves.length > 0) {
+      overallBest = localBestMoves[Math.floor(Math.random() * localBestMoves.length)];
+      // preparation for next iteration: continue deeper if time remains
+      bestScore = localBestScore;
+      bestMoves = localBestMoves;
     }
+  }
+
+  if (overallBest) {
+    return overallBest;
   }
 
   if (bestMoves.length === 0) {
