@@ -49,6 +49,10 @@
 
   const canvas = document.getElementById('board');
   const resetBtn = document.getElementById('reset');
+  // UI elements for stats & undo (create before inserting into controls)
+  const undoBtn = document.createElement('button'); undoBtn.textContent = '撤销';
+  const movesLabel = document.createElement('div'); movesLabel.style.alignSelf = 'center'; movesLabel.style.color = '#333';
+  const bestLabel = document.createElement('div'); bestLabel.style.alignSelf = 'center'; bestLabel.style.color = '#666';
   // create simple level controls
   const controlsWrap = document.createElement('div');
   controlsWrap.style.marginTop = '8px';
@@ -59,13 +63,24 @@
   const nextBtn = document.createElement('button'); nextBtn.textContent = '下一关';
   const lvlLabel = document.createElement('div'); lvlLabel.style.alignSelf = 'center'; lvlLabel.style.color = '#333';
   controlsWrap.appendChild(prevBtn); controlsWrap.appendChild(lvlLabel); controlsWrap.appendChild(nextBtn);
+  // add undo and stats
+  controlsWrap.appendChild(undoBtn);
+  const statsWrap = document.createElement('div'); statsWrap.style.display='flex'; statsWrap.style.gap='10px'; statsWrap.style.alignItems='center';
+  statsWrap.appendChild(movesLabel); statsWrap.appendChild(bestLabel);
+  controlsWrap.appendChild(statsWrap);
   resetBtn.parentNode.insertBefore(controlsWrap, resetBtn.nextSibling);
   const ctx = canvas.getContext('2d');
   const cellSize = 48;
 
+  // game state
   let map = [];
   let rows = 0, cols = 0;
   let player = {r:0,c:0};
+
+  // history for undo
+  let history = [];
+  let moveCount = 0;
+
 
   function parseLevel(str){
     const lines = str.split('\n');
@@ -112,11 +127,32 @@
 
   function isFree(ch){ return ch===TILE.FLOOR || ch===TILE.TARGET; }
 
+  function snapshotState(){
+    return { map: map.map(row=>row.slice()), player: {r: player.r, c: player.c} };
+  }
+
+  function restoreState(s){
+    map = s.map.map(row=>row.slice());
+    player.r = s.player.r; player.c = s.player.c;
+    rows = map.length; cols = map[0] ? map[0].length : 0;
+    resizeCanvas();
+    draw();
+  }
+
+  function pushSnapshot(){ history.push(snapshotState()); }
+
+  function updateStats(){
+    const key = `sokoban_best_${currentLevel}`;
+    const best = localStorage.getItem(key);
+    movesLabel.textContent = `步数: ${moveCount}`;
+    bestLabel.textContent = `最佳: ${best !== null ? best : '-'} `;
+  }
+
   function move(dr,dc){
     const r=player.r, c=player.c;
     const nr=r+dr, nc=c+dc;
     const dest = cell(nr,nc);
-    if(dest===TILE.WALL || dest===undefined) return;
+    if(dest===undefined || dest===TILE.WALL) return;
     // push box
     if(dest===TILE.BOX || dest===TILE.BOX_ON_TARGET){
       const br=nr+dr, bc=nc+dc;
@@ -130,9 +166,22 @@
       stepTo(nr,nc);
     } else if(isFree(dest)){
       stepTo(nr,nc);
+    } else {
+      return;
     }
+    moveCount++;
+    pushSnapshot();
     draw();
-    if(checkWin()) setTimeout(()=>alert('恭喜，你赢了！'),10);
+    updateStats();
+    if(checkWin()){
+      const key = `sokoban_best_${currentLevel}`;
+      const best = localStorage.getItem(key);
+      if(best === null || moveCount < Number(best)){
+        localStorage.setItem(key, String(moveCount));
+        updateStats();
+      }
+      setTimeout(()=>alert('恭喜，你赢了！'),10);
+    }
   }
 
   function stepTo(r,c){
@@ -160,7 +209,10 @@
     }
   }
 
-  function reset(){ parseLevel(levelStr()); resizeCanvas(); draw(); updateLabel(); }
+  function reset(){ parseLevel(levelStr()); resizeCanvas(); draw(); updateLabel();
+    // reset history and moves
+    moveCount = 0; history = [snapshotState()]; updateStats();
+  }
 
   function updateLabel(){ lvlLabel.textContent = `第 ${currentLevel+1} 关 / ${LEVELS.length} 关`; }
 
@@ -172,6 +224,18 @@
   resizeCanvas();
   draw();
   updateLabel();
+  // initialize history & stats
+  moveCount = 0; history = [snapshotState()]; updateStats();
+  // undo handler
+  undoBtn.addEventListener('click', ()=>{
+    if(history.length>1){
+      history.pop();
+      const s = history[history.length-1];
+      restoreState(s);
+      moveCount = Math.max(0, moveCount-1);
+      updateStats();
+    }
+  });
   // set version display if present
   const verEl = document.getElementById('version'); if(verEl) verEl.textContent = `v${VERSION}`;
   window.addEventListener('keydown', handleKey);
