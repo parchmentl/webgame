@@ -15,6 +15,13 @@ function start(): void {
   if (!ctxMaybe) throw new Error('Canvas context not available');
   const ctx: CanvasRenderingContext2D = ctxMaybe;
 
+  // Sync canvas internal size with CSS variable calculations
+  const cell = Math.min(0.095 * window.innerWidth, 48);
+  const canvasW = cell * 9 + 28;
+  const canvasH = cell * 10 + 28;
+  dom.cv.width = canvasW;
+  dom.cv.height = canvasH;
+
   const state = createGameState();
 
   function redraw(): void {

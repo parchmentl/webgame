@@ -10,7 +10,7 @@ export type Layout = {
 };
 
 export function computeLayout(cv: HTMLCanvasElement): Layout {
-  const PAD = 14;
+  const PAD = 20;
   const GRID_W = cv.width - PAD * 2;
   const GRID_H = cv.height - PAD * 2;
   const CELL = Math.min(GRID_W / 8, GRID_H / 9);
@@ -120,14 +120,14 @@ function drawPieces(ctx: CanvasRenderingContext2D, layout: Layout, board: Board)
       ctx.shadowBlur = 10;
       ctx.fillStyle = 'rgba(255,255,255,0.08)';
       ctx.beginPath();
-      ctx.arc(cx, cy, layout.CELL * 0.42, 0, Math.PI * 2);
+      ctx.arc(cx, cy, layout.CELL * 0.38, 0, Math.PI * 2);
       ctx.fill();
       ctx.shadowBlur = 0;
 
       ctx.lineWidth = 2;
       ctx.strokeStyle = 'rgba(255,255,255,0.16)';
       ctx.beginPath();
-      ctx.arc(cx, cy, layout.CELL * 0.42, 0, Math.PI * 2);
+      ctx.arc(cx, cy, layout.CELL * 0.38, 0, Math.PI * 2);
       ctx.stroke();
 
       ctx.fillStyle = p.c === 'r' ? '#ff6a75' : '#e3e3e3';
