@@ -1,11 +1,40 @@
 (function(){
-  const levelStr = [
-    "#####",
-    "#.@ #",
-    "# $ #",
-    "# . #",
-    "#####"
-  ].join('\n');
+  const LEVELS = [
+    [
+      "#####",
+      "#.@ #",
+      "# $ #",
+      "# . #",
+      "#####"
+    ].join('\n'),
+    [
+      " ####### ",
+      " #  .  # ",
+      " # $$  # ",
+      " #  @  # ",
+      " ####### "
+    ].join('\n'),
+    [
+      "  #######  ",
+      "  #  .  #  ",
+      "  # $$$ #  ",
+      "###  $  ###",
+      "#   @    #",
+      "#  ..... #",
+      "###########"
+    ].join('\n'),
+    [
+      "#########",
+      "#   .   #",
+      "#  $$$  #",
+      "# $@$ $ #",
+      "#  $$$  #",
+      "#   .   #",
+      "#########"
+    ].join('\n')
+  ];
+  let currentLevel = 0;
+  function levelStr(){ return LEVELS[currentLevel]; }
 
   const TILE = {
     WALL: '#',
@@ -19,6 +48,17 @@
 
   const canvas = document.getElementById('board');
   const resetBtn = document.getElementById('reset');
+  // create simple level controls
+  const controlsWrap = document.createElement('div');
+  controlsWrap.style.marginTop = '8px';
+  controlsWrap.style.display = 'flex';
+  controlsWrap.style.gap = '8px';
+  controlsWrap.style.justifyContent = 'center';
+  const prevBtn = document.createElement('button'); prevBtn.textContent = '上一关';
+  const nextBtn = document.createElement('button'); nextBtn.textContent = '下一关';
+  const lvlLabel = document.createElement('div'); lvlLabel.style.alignSelf = 'center'; lvlLabel.style.color = '#333';
+  controlsWrap.appendChild(prevBtn); controlsWrap.appendChild(lvlLabel); controlsWrap.appendChild(nextBtn);
+  resetBtn.parentNode.insertBefore(controlsWrap, resetBtn.nextSibling);
   const ctx = canvas.getContext('2d');
   const cellSize = 48;
 
@@ -119,12 +159,18 @@
     }
   }
 
-  function reset(){ parseLevel(levelStr); resizeCanvas(); draw(); }
+  function reset(){ parseLevel(levelStr()); resizeCanvas(); draw(); updateLabel(); }
+
+  function updateLabel(){ lvlLabel.textContent = `第 ${currentLevel+1} 关 / ${LEVELS.length} 关`; }
+
+  prevBtn.addEventListener('click', ()=>{ currentLevel = Math.max(0,currentLevel-1); reset(); });
+  nextBtn.addEventListener('click', ()=>{ currentLevel = Math.min(LEVELS.length-1,currentLevel+1); reset(); });
 
   // init
-  parseLevel(levelStr);
+  parseLevel(levelStr());
   resizeCanvas();
   draw();
+  updateLabel();
   window.addEventListener('keydown', handleKey);
   resetBtn.addEventListener('click', reset);
 })();
