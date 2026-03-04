@@ -1,5 +1,5 @@
 const CONFIG = {
-  VERSION: 'v1.6.3 · AI: 3秒迭代加深'
+  VERSION: 'v1.6.4 · AI: 开局优化+中盘强化'
 };
 
 const SIZE = 15;
@@ -499,34 +499,82 @@ function findBestMove() {
   const candidates = generateCandidates();
   if (candidates.length === 0) return null;
 
+  // 开局优化：无子时直接走中央
+  if (candidates.length === 1) {
+    return candidates[0];
+  }
+
   // VCT 优先：搜索连续威胁必胜着法
   const vctMove = findVCTMove(candidates);
   if (vctMove) {
-    return vctMove; // 发现 VCT 必胜，直接走
+    return vctMove;
   }
 
-  // 第一层防守：检查对手是否有立即获胜的位置
+  // 唯一防守：对手是否有立即获胜位置
   for (const { r, c } of candidates) {
     board[r][c] = HUMAN;
     if (checkWin(r, c, HUMAN)) {
       board[r][c] = 0;
-      return { r, c }; // 立即防守必赢局面
+      return { r, c };
     }
     board[r][c] = 0;
   }
 
-  // 第二层防守：检查对手是否有"活三"威胁（两端都开放的三子）
-  let activeThreatMoves = [];
-  for (const { r, c } of candidates) {
-    board[r][c] = HUMAN;
-    let isActiveThreat = false;
-    outer: for (const [dr, dc] of [[1, 0], [0, 1], [1, 1], [1, -1]]) {
-      let count1 = 0, open1 = 0;
-      let rr = r + dr, cc = c + dc;
-      while (rr >= 0 && rr < SIZE && cc >= 0 && cc < SIZE && board[rr][cc] === HUMAN) {
-        count1++; rr += dr; cc += dc;
+  // 进攻搜索
+  let bestScore = -Infinity;
+  let bestMoves = [];
+
+  const rankedCandidates = candidates.map(({ r, c }) => {
+    const aiThreat = localScore(r, c, AI);
+    const humanThreat = localScore(r, c, HUMAN) * 1.2;
+    return { r, c, priority: aiThreat + humanThreat };
+  }).sort((a, b) => b.priority - a.priority);
+
+  aiStartTime = Date.now();
+  aiTimedOut = false;
+  let overallBest = null;
+
+  for (let depth = 1; depth <= MAX_DEPTH; depth++) {
+    if (Date.now() - aiStartTime > AI_TIME_LIMIT) break;
+    let localBestScore = -Infinity;
+    let localBestMoves = [];
+
+    for (const { r, c } of rankedCandidates) {
+      if (Date.now() - aiStartTime > AI_TIME_LIMIT) {
+        aiTimedOut = true;
+        break;
       }
-      if (rr >= 0 && rr < SIZE && cc >= 0 && cc < SIZE && board[rr][cc] === 0) open1 = 1;
+      board[r][c] = AI;
+      const score = alphaBeta(depth - 1, -Infinity, Infinity, HUMAN);
+      board[r][c] = 0;
+      if (aiTimedOut) break;
+      if (score > localBestScore) {
+        localBestScore = score;
+        localBestMoves = [{ r, c }];
+      } else if (score === localBestScore) {
+        localBestMoves.push({ r, c });
+      }
+    }
+
+    if (!aiTimedOut && localBestMoves.length > 0) {
+      overallBest = localBestMoves[Math.floor(Math.random() * localBestMoves.length)];
+      bestScore = localBestScore;
+      bestMoves = localBestMoves;
+    }
+  }
+
+  if (overallBest) {
+    return overallBest;
+  }
+
+  if (bestMoves.length === 0) {
+    if (rankedCandidates && rankedCandidates.length) {
+      return { r: rankedCandidates[0].r, c: rankedCandidates[0].c };
+    }
+    return candidates[0];
+  }
+  return bestMoves[Math.floor(Math.random() * bestMoves.length)];
+}
 
       let count2 = 0, open2 = 0;
       rr = r - dr; cc = c - dc;
