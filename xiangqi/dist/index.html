@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1" />
+<title>中国象棋 · 双人对弈（HTML单文件）</title>
+  <script type="module" crossorigin src="/assets/index-BYfr3flI.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index-CZz14TW9.css">
+</head>
+<body>
+<div class="app">
+  <div class="boardWrap">
+    <canvas id="cv" width="520" height="580"></canvas>
+  </div>
+
+  <div class="side">
+    <div class="title">
+      <h1>中国象棋 · 双人对弈</h1>
+      <div class="ver">单文件版</div>
+    </div>
+
+    <div class="row">
+      <div class="pill"><span class="dot red"></span>红方</div>
+      <div class="pill"><span class="dot black"></span>黑方</div>
+      <div class="pill"><span class="dot" id="turnDot"></span><span id="turnText">红先</span></div>
+    </div>
+
+    <div class="row">
+      <button id="btnReset">重新开局</button>
+      <button id="btnUndo">悔棋</button>
+    </div>
+
+    <div class="status" id="status">
+      <div>点击棋子选择，再点击目标格落子。</div>
+      <div>提示：红方在下（y=9），黑方在上（y=0）。</div>
+    </div>
+
+    <div class="log">
+      <div class="logHeader">
+        <span>走子记录</span>
+        <span class="kbd">click</span>
+      </div>
+      <div class="logBody" id="log"></div>
+    </div>
+
+    <div class="hint">
+      <div>规则实现：车马相仕帅炮兵（含炮隔打、兵过河、帅将不见面）。</div>
+      <div>胜负：吃掉对方将/帅即结束（未做将死搜索）。</div>
+    </div>
+  </div>
+</div>
+</body>
+</html>
