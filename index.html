@@ -7,6 +7,7 @@
 <title>经典小游戏合集</title>
 
 <style>
+/* 全局与容器样式 */
 body{
     margin:0;
     min-height:100vh;
@@ -27,6 +28,7 @@ body{
     backdrop-filter:blur(10px);
 }
 
+/* 标题与副标题 */
 h1{
     margin:0 0 8px;
     font-size:26px;
@@ -38,6 +40,7 @@ h1{
     color:#a0a4b0;
 }
 
+/* 游戏入口按钮 */
 .btn{
     display:block;
     width:240px;
@@ -61,6 +64,7 @@ h1{
     box-shadow:0 8px 18px rgba(0,0,0,.45);
 }
 
+/* 版本号 */
 .version{
     margin-top:20px;
     font-size:12px;
@@ -71,19 +75,22 @@ h1{
 
 <body>
 
+<!-- 主容器 -->
 <div class="container">
   <h1>MU 的小游戏</h1>
   <p class="subtitle">一些摸鱼小游戏，随时点开玩一局。</p>
 
+  <!-- 游戏入口列表 -->
   <a class="btn" href="./snake/"><span class="icon">🐍</span>贪吃蛇</a>
   <a class="btn" href="./tetris/"><span class="icon">🧱</span>俄罗斯方块</a>
   <a class="btn" href="./whackmole/"><span class="icon">🔨</span>打地鼠</a>
   <a class="btn" href="./2048/"><span class="icon">🎯</span>2048</a>
   <a class="btn" href="./gomoku/"><span class="icon">⚫</span>五子棋(AI)</a>
   <a class="btn" href="./gomoku_pvp/"><span class="icon">⚪</span>五子棋(双人)</a>
-  <a class="btn" href="./xiangqi/"><span class="icon">🐉</span>中国象棋(双人)</a>
-  <a class="btn" href="./sokoban/"><span class="icon">📦</span>推箱子</a>
+  <!-- <a class="btn" href="./xiangqi/"><span class="icon">🐉</span>中国象棋(双人)</a> -->
+  <!-- <a class="btn" href="./sokoban/"><span class="icon">📦</span>推箱子</a> -->
 
+  <!-- 版本信息 -->
   <div class="version">v1.0.6</div>
 </div>
 
