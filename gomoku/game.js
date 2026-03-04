@@ -1,5 +1,5 @@
 const CONFIG = {
-  VERSION: 'v1.1.0 · AI: α-β 搜索'
+  VERSION: 'v1.2.0 · AI: α-β 搜索 + 增强'
 };
 
 const SIZE = 15;
@@ -11,7 +11,7 @@ const versionEl = document.getElementById('version');
 
 const HUMAN = 1; // 玩家执黑
 const AI = 2;    // AI 执白
-const MAX_DEPTH = 3; // 搜索深度（奇数：我方-对方-我方）
+const MAX_DEPTH = 4; // 搜索深度（奇数：我方-对方-我方）
 
 let cell = 0;
 let offset = 0;
@@ -190,12 +190,12 @@ function generateCandidates() {
   }
 
   candidates.sort((a, b) => b.score - a.score);
-  const LIMIT = 12;
+  const LIMIT = 20;
   return candidates.slice(0, LIMIT).map(x => ({ r: x.r, c: x.c }));
 }
 
 function localScore(r, c, who) {
-  // 简单局部评分：看四个方向上连续子和活度
+  // 改进的局部评分：四个方向的连续子、活度、防守价值
   const dirs = [[1, 0], [0, 1], [1, 1], [1, -1]];
   let score = 0;
   for (const [dr, dc] of dirs) {
@@ -204,26 +204,33 @@ function localScore(r, c, who) {
     while (rr >= 0 && rr < SIZE && cc >= 0 && cc < SIZE && board[rr][cc] === who) {
       count1++; rr += dr; cc += dc;
     }
-    if (rr >= 0 && rr < SIZE && cc >= 0 && cc < SIZE && board[rr][cc] === 0) open1 = 1;
+    const blockedRight = (rr < 0 || rr >= SIZE || cc < 0 || cc >= SIZE || board[rr][cc] !== 0);
+    if (!blockedRight) open1 = 1;
 
     let count2 = 0, open2 = 0;
     rr = r - dr; cc = c - dc;
     while (rr >= 0 && rr < SIZE && cc >= 0 && cc < SIZE && board[rr][cc] === who) {
       count2++; rr -= dr; cc -= dc;
     }
-    if (rr >= 0 && rr < SIZE && cc >= 0 && cc < SIZE && board[rr][cc] === 0) open2 = 1;
+    const blockedLeft = (rr < 0 || rr >= SIZE || cc < 0 || cc >= SIZE || board[rr][cc] !== 0);
+    if (!blockedLeft) open2 = 1;
 
     const total = count1 + count2;
     const openEnds = open1 + open2;
     if (total <= 0) continue;
 
-    if (total >= 4 && openEnds > 0) score += 100000;
-    else if (total === 3 && openEnds === 2) score += 8000;
-    else if (total === 3 && openEnds === 1) score += 2000;
-    else if (total === 2 && openEnds === 2) score += 1000;
-    else if (total === 2 && openEnds === 1) score += 300;
-    else if (total === 1 && openEnds === 2) score += 80;
-    else if (total === 1 && openEnds === 1) score += 30;
+    // 改进的评分：同时考虑连续子数、活度和防守价值
+    if (total >= 4) score += 500000;  // 已经能赢
+    else if (total === 3) {
+      if (openEnds === 2) score += 50000;   // 活三（两端都开放）
+      else if (openEnds === 1) score += 8000; // 冲三
+    } else if (total === 2) {
+      if (openEnds === 2) score += 5000;    // 活二
+      else if (openEnds === 1) score += 500; // 冲二
+    } else if (total === 1) {
+      if (openEnds === 2) score += 200;     // 单子两头开
+      else if (openEnds === 1) score += 50;  // 单子一端开
+    }
   }
   return score;
 }
@@ -331,6 +338,17 @@ function findBestMove() {
   const candidates = generateCandidates();
   if (candidates.length === 0) return null;
 
+  // 防守逻辑：检查对手是否有立即获胜的位置
+  for (const { r, c } of candidates) {
+    board[r][c] = HUMAN;
+    if (checkWin(r, c, HUMAN)) {
+      board[r][c] = 0;
+      return { r, c }; // 立即防守
+    }
+    board[r][c] = 0;
+  }
+
+  // 进攻逻辑：搜索最佳落子点
   let bestScore = -Infinity;
   let bestMoves = [];
 
