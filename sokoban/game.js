@@ -1,4 +1,5 @@
 (function(){
+  const VERSION = '1.0.0';
   const LEVELS = [
     [
       "#####",
@@ -171,6 +172,8 @@
   resizeCanvas();
   draw();
   updateLabel();
+  // set version display if present
+  const verEl = document.getElementById('version'); if(verEl) verEl.textContent = `v${VERSION}`;
   window.addEventListener('keydown', handleKey);
   resetBtn.addEventListener('click', reset);
 })();

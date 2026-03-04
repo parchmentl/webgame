@@ -4,3 +4,4 @@ h1 { margin:8px 0; }
 canvas { background:#eee; display:block; margin:10px 0; image-rendering:pixelated; }
 button { padding:6px 12px; font-size:14px; }
 .instructions { max-width:560px; text-align:center; }
+ .version { margin:6px 0 0; color:#666; font-size:13px; }
