@@ -3,7 +3,7 @@ const CONFIG = {
   COLS: 10,
   ROWS: 20,
   SCALE: 0.7,
-  VERSION: '1.0.4'
+  VERSION: '1.1.0'
 };
 
 const COLORS = [
