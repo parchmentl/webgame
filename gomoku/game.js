@@ -1,5 +1,5 @@
 const CONFIG = {
-  VERSION: 'v1.5.0 · AI: 置换表 + 优化不会'
+  VERSION: 'v1.6.0 · AI: VCT/VCF 连续威胁'
 };
 
 const SIZE = 15;
@@ -325,6 +325,112 @@ function alphaBeta(depth, alpha, beta, player) {
   return bestValue;
 }
 
+// ================= VCT 识别引擎 =================
+// 获取所有威胁位置（活三或活四）
+function getThreats(player) {
+  const threats = [];
+  for (let r = 0; r < SIZE; r++) {
+    for (let c = 0; c < SIZE; c++) {
+      if (board[r][c] !== 0) continue;
+      
+      // 试下这一步，检查是否形成威胁
+      board[r][c] = player;
+      let hasThree = false;
+      let hasFour = false;
+      
+      const dirs = [[1, 0], [0, 1], [1, 1], [1, -1]];
+      for (const [dr, dc] of dirs) {
+        let count = 1;
+        count += scan(r, c, dr, dc, player);
+        count += scan(r, c, -dr, -dc, player);
+        if (count >= 4) hasFour = true;
+        else if (count === 3) {
+          // 检查是否是活三（两端都开放）
+          let open = 0;
+          let rr = r + dr, cc = c + dc;
+          while (rr >= 0 && rr < SIZE && cc >= 0 && cc < SIZE && board[rr][cc] === player) {
+            rr += dr; cc += dc;
+          }
+          if (rr >= 0 && rr < SIZE && cc >= 0 && cc < SIZE && board[rr][cc] === 0) open++;
+          
+          rr = r - dr; cc = c - dc;
+          while (rr >= 0 && rr < SIZE && cc >= 0 && cc < SIZE && board[rr][cc] === player) {
+            rr -= dr; cc -= dc;
+          }
+          if (rr >= 0 && rr < SIZE && cc >= 0 && cc < SIZE && board[rr][cc] === 0) open++;
+          
+          if (open === 2) hasThree = true;
+        }
+      }
+      board[r][c] = 0;
+      
+      if (hasThree || hasFour) {
+        threats.push({ r, c, type: hasFour ? 'four' : 'three' });
+      }
+    }
+  }
+  return threats;
+}
+
+// VCT 验证：检查是否能形成连续威胁必胜
+function canVCT(player, depth, mustWin) {
+  if (depth > 5) return false; // 限制搜索深度
+  
+  const threats = getThreats(player);
+  if (threats.length === 0) return false;
+  
+  // 如果已经有活四，直接赢
+  if (threats.some(t => t.type === 'four')) return true;
+  
+  // 对每个威胁位置，试着走
+  for (const { r, c } of threats) {
+    board[r][c] = player;
+    const opponent = player === AI ? HUMAN : AI;
+    
+    // 对手必须防守这个威胁
+    const defenses = getThreats(player); // 对手能防守的位置（破坏我方威胁）
+    
+    if (defenses.length === 0) {
+      // 对手无法防守，我方胜
+      board[r][c] = 0;
+      return true;
+    }
+    
+    // 检查是否存在一个防守后，我们还能继续威胁
+    let canContinue = false;
+    for (const { r: dr, c: dc } of defenses.slice(0, 3)) { // 只检查前3个防守
+      board[dr][dc] = opponent;
+      
+      // 继续递归检查
+      if (canVCT(player, depth + 1, true)) {
+        canContinue = true;
+      }
+      
+      board[dr][dc] = 0;
+      if (canContinue) break;
+    }
+    
+    board[r][c] = 0;
+    if (canContinue) return true;
+  }
+  
+  return false;
+}
+
+// 寻找能发动 VCT 的着法
+function findVCTMove(candidates) {
+  for (const { r, c } of candidates) {
+    board[r][c] = AI;
+    const isVCT = canVCT(AI, 0, false);
+    board[r][c] = 0;
+    
+    if (isVCT) {
+      return { r, c };
+    }
+  }
+  return null;
+}
+
 function doMove(r, c) {
   if (gameOver) return;
   if (board[r][c] !== 0) return;
@@ -379,6 +485,12 @@ function aiMove() {
 function findBestMove() {
   const candidates = generateCandidates();
   if (candidates.length === 0) return null;
+
+  // VCT 优先：搜索连续威胁必胜着法
+  const vctMove = findVCTMove(candidates);
+  if (vctMove) {
+    return vctMove; // 发现 VCT 必胜，直接走
+  }
 
   // 第一层防守：检查对手是否有立即获胜的位置
   for (const { r, c } of candidates) {
