@@ -1,5 +1,5 @@
 const CONFIG = {
-  VERSION: 'v1.2.0 · AI: α-β 搜索 + 增强'
+  VERSION: 'v1.3.1 · AI: 深度搜索 + 智能防守'
 };
 
 const SIZE = 15;
@@ -11,7 +11,7 @@ const versionEl = document.getElementById('version');
 
 const HUMAN = 1; // 玩家执黑
 const AI = 2;    // AI 执白
-const MAX_DEPTH = 4; // 搜索深度（奇数：我方-对方-我方）
+const MAX_DEPTH = 5; // 搜索深度（奇数：我方-对方-我方）
 
 let cell = 0;
 let offset = 0;
@@ -19,12 +19,14 @@ let board = [];
 let current = HUMAN; // 当前执子方
 let gameOver = false;
 let moves = 0;
+let lastMove = null; // 记录最后一步落子位置
 
 function init() {
   board = Array.from({ length: SIZE }, () => Array(SIZE).fill(0));
   current = HUMAN;
   gameOver = false;
   moves = 0;
+  lastMove = null;
   if (versionEl) {
     versionEl.textContent = CONFIG.VERSION;
   }
@@ -79,6 +81,19 @@ function draw() {
       if (!board[r][c]) continue;
       drawStone(r, c, board[r][c]);
     }
+  }
+
+  // 高亮显示最后一步的落子位置
+  if (lastMove) {
+    const { r, c } = lastMove;
+    const x = offset + c * cell;
+    const y = offset + r * cell;
+    const radius = cell * 0.48;
+    ctx.strokeStyle = '#ff9800';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(x, y, radius, 0, Math.PI * 2);
+    ctx.stroke();
   }
 }
 
@@ -222,14 +237,14 @@ function localScore(r, c, who) {
     // 改进的评分：同时考虑连续子数、活度和防守价值
     if (total >= 4) score += 500000;  // 已经能赢
     else if (total === 3) {
-      if (openEnds === 2) score += 50000;   // 活三（两端都开放）
-      else if (openEnds === 1) score += 8000; // 冲三
+      if (openEnds === 2) score += 100000;  // 活三（两端都开放）- 大幅提高权重
+      else if (openEnds === 1) score += 12000; // 冲三
     } else if (total === 2) {
-      if (openEnds === 2) score += 5000;    // 活二
-      else if (openEnds === 1) score += 500; // 冲二
+      if (openEnds === 2) score += 15000;   // 活二 - 提高权重
+      else if (openEnds === 1) score += 800; // 冲二
     } else if (total === 1) {
-      if (openEnds === 2) score += 200;     // 单子两头开
-      else if (openEnds === 1) score += 50;  // 单子一端开
+      if (openEnds === 2) score += 500;     // 单子两头开
+      else if (openEnds === 1) score += 80;  // 单子一端开
     }
   }
   return score;
@@ -289,6 +304,7 @@ function doMove(r, c) {
   if (board[r][c] !== 0) return;
 
   board[r][c] = current;
+  lastMove = { r, c }; // 记录本步落子位置
   moves++;
   draw();
 
@@ -338,14 +354,50 @@ function findBestMove() {
   const candidates = generateCandidates();
   if (candidates.length === 0) return null;
 
-  // 防守逻辑：检查对手是否有立即获胜的位置
+  // 第一层防守：检查对手是否有立即获胜的位置
   for (const { r, c } of candidates) {
     board[r][c] = HUMAN;
     if (checkWin(r, c, HUMAN)) {
       board[r][c] = 0;
-      return { r, c }; // 立即防守
+      return { r, c }; // 立即防守必赢局面
     }
     board[r][c] = 0;
+  }
+
+  // 第二层防守：检查对手是否有"活三"威胁（两端都开放的三子）
+  let defensiveMoves = [];
+  for (const { r, c } of candidates) {
+    board[r][c] = HUMAN;
+    let isActiveThreat = false;
+    outer: for (const [dr, dc] of [[1, 0], [0, 1], [1, 1], [1, -1]]) {
+      let count1 = 0, open1 = 0;
+      let rr = r + dr, cc = c + dc;
+      while (rr >= 0 && rr < SIZE && cc >= 0 && cc < SIZE && board[rr][cc] === HUMAN) {
+        count1++; rr += dr; cc += dc;
+      }
+      if (rr >= 0 && rr < SIZE && cc >= 0 && cc < SIZE && board[rr][cc] === 0) open1 = 1;
+
+      let count2 = 0, open2 = 0;
+      rr = r - dr; cc = c - dc;
+      while (rr >= 0 && rr < SIZE && cc >= 0 && cc < SIZE && board[rr][cc] === HUMAN) {
+        count2++; rr -= dr; cc -= dc;
+      }
+      if (rr >= 0 && rr < SIZE && cc >= 0 && cc < SIZE && board[rr][cc] === 0) open2 = 1;
+
+      if (count1 + count2 === 3 && open1 === 1 && open2 === 1) {
+        isActiveThreat = true;
+        break outer;
+      }
+    }
+    board[r][c] = 0;
+    if (isActiveThreat) {
+      defensiveMoves.push({ r, c });
+    }
+  }
+
+  // 如果有活三威胁，优先防守
+  if (defensiveMoves.length > 0) {
+    return defensiveMoves[Math.floor(Math.random() * defensiveMoves.length)];
   }
 
   // 进攻逻辑：搜索最佳落子点
