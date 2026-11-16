@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>霓虹拳影 · NEON FIST</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="stage">
+  <canvas id="game" width="960" height="540"></canvas>
+
+  <div class="screen" id="scrTitle">
+    <div class="logotag">2P LOCAL FIGHTER</div>
+    <h1>霓虹拳影</h1>
+    <div class="logo-sub">N E O N &nbsp; F I S T</div>
+    <div class="press">按 Enter 开始</div>
+    <div class="ver">v1.0.0</div>
+  </div>
+
+  <div class="screen hidden" id="scrMenu">
+    <h2>主菜单</h2>
+    <div class="menu-list">
+      <button data-act="versus">双人对战</button>
+      <button data-act="help">操作说明</button>
+      <button data-act="mute" id="muteBtn">音效：开</button>
+      <a class="btn-link" href="../">返回游戏合集</a>
+    </div>
+    <div class="hint">W / S 或 ↑ / ↓ 选择 · Enter 确认</div>
+  </div>
+
+  <div class="screen hidden" id="scrSelect">
+    <h2>选择角色</h2>
+    <div class="select-row">
+      <div class="pstat" id="p1stat">P1 · WASD 移动 · J 确认</div>
+      <div class="pstat" id="p2stat">P2 · 方向键移动 · 小键盘1 / , 确认</div>
+    </div>
+    <div class="grid" id="charGrid"></div>
+    <div class="hint">双方各自确认后进入舞台选择 · 允许同选</div>
+  </div>
+
+  <div class="screen hidden" id="scrStage">
+    <h2>选择舞台</h2>
+    <div class="grid stage-grid" id="stageGrid"></div>
+    <div class="hint">P1：A / D 选择 · J 或 Enter 确认</div>
+  </div>
+
+  <div class="screen hidden" id="scrPause">
+    <h2>已暂停</h2>
+    <div class="menu-list">
+      <button data-act="resume">继续对战</button>
+      <button data-act="help">操作说明</button>
+      <button data-act="restart">重新开始本场</button>
+      <button data-act="menu">回主菜单</button>
+    </div>
+    <div class="hint">Esc 继续</div>
+  </div>
+
+  <div class="screen hidden" id="scrResult">
+    <h2 id="resTitle">K.O.</h2>
+    <div class="res-grid" id="resStats"></div>
+    <div class="menu-list">
+      <button data-act="rematch">再战一局（R）</button>
+      <button data-act="select">重新选人</button>
+      <button data-act="menu">主菜单</button>
+    </div>
+  </div>
+
+  <div class="screen hidden" id="scrHelp">
+    <h2>操作说明</h2>
+    <div class="help-cols">
+      <div>
+        <h3>P1</h3>
+        <table>
+          <tr><td>移动 / 蹲 / 跳</td><td>A D / S / W</td></tr>
+          <tr><td>轻拳 · 轻脚</td><td>J · K</td></tr>
+          <tr><td>重拳 · 重脚</td><td>U · I</td></tr>
+          <tr><td>翻滚 · 吹飞</td><td>L · H</td></tr>
+          <tr><td>投技（近身）</td><td>J + K</td></tr>
+        </table>
+      </div>
+      <div>
+        <h3>P2</h3>
+        <table>
+          <tr><td>移动 / 蹲 / 跳</td><td>← → / ↓ / ↑</td></tr>
+          <tr><td>轻拳 · 轻脚</td><td>小1 · 小2（, .）</td></tr>
+          <tr><td>重拳 · 重脚</td><td>小4 · 小5（/ ;）</td></tr>
+          <tr><td>翻滚 · 吹飞</td><td>小0 · 小3（' [）</td></tr>
+          <tr><td>投技（近身）</td><td>小1 + 小2（, + .）</td></tr>
+        </table>
+      </div>
+    </div>
+    <div class="help-sys">
+      系统：Esc 暂停 · M 静音 · Enter 确认<br>
+      防御 = 按住后方向 · 空中不可防御 · 中段技需站防、下段技需蹲防<br>
+      防御取消 = 防御硬直中按 吹飞 / 翻滚（100 能量）· MAX = 四个攻击键同按（轻拳+轻脚+重拳+重脚，100 能量，10 秒）<br>
+      EX 必杀 = 必杀指令 + 同类双键（100 能量，MAX 中免费）· 超必杀 = 双转指令（100 能量）<br>
+      受身 = 浮空落地前按 拳+脚 · 快速起身 = 倒地时按住 ↓ · 翻滚方向 = 按住 ←/→ 再翻滚<br>
+      招式指令：↓↘→ + 拳（236P） · →↓↘ + 拳（623P） · ↓↙← + 脚（214K） · 后蓄力 + 前 + 拳
+    </div>
+    <div class="hint">Esc 或 Enter 返回</div>
+  </div>
+
+  <div class="touch-note hidden" id="touchNote">本作需键盘操作</div>
+</div>
+
+<script src="js/chars.js"></script>
+<script src="js/core.js"></script>
+<script src="js/input.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/combat.js"></script>
+<script src="js/render.js"></script>
+<script src="js/ui.js"></script>
+</body>
+</html>
