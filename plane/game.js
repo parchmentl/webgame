@@ -3,9 +3,17 @@
 
 const W = 420, H = 740;
 const DPR = Math.min(window.devicePixelRatio || 1, 2);
-const VERSION = '1.1.0';
+const VERSION = '1.2.0';
 const SEEN_KEY = 'planeSeenVersion';
 const CHANGELOG = [
+  {
+    v: '1.2.0', date: '2026-11-16', title: '补给调整 · 生存上限',
+    items: [
+      '炸弹数量不设上限，每次拾取必定 +1',
+      '机体生命上限提升至 10，满命时拾取转为 +800 分',
+      '生命超过 5 时以 ❤️×N 紧凑显示，状态坞不溢出'
+    ]
+  },
   {
     v: '1.1.0', date: '2026-11-16', title: '难度分档 · 武器系统',
     items: [
@@ -380,9 +388,10 @@ function applyPower(kind) {
   } else if (kind === 'shield') {
     G.shield = 6; floatText(p.x, p.y - 40, '护盾 6s', '#22d3ee');
   } else if (kind === 'bomb') {
-    G.bombs = Math.min(G.bombs + 1, 4); floatText(p.x, p.y - 40, '炸弹 +1', '#fbbf24');
+    G.bombs++; floatText(p.x, p.y - 40, '炸弹 +1', '#fbbf24');
   } else {
-    G.lives = Math.min(G.lives + 1, 4); floatText(p.x, p.y - 40, '机体 +1', '#f43f5e');
+    if (G.lives < 10) { G.lives++; floatText(p.x, p.y - 40, '机体 +1', '#f43f5e'); }
+    else { G.score += 800; floatText(p.x, p.y - 40, '+800', '#f43f5e'); }
   }
   syncHud(true);
 }
@@ -778,8 +787,12 @@ function syncHud(force) {
   const d = DIFFS[G.diff];
   setText(el.wave, 'wave', G.wave === 0 ? '准备 · ' + d.label
     : bossWave ? 'BOSS 战 · ' + d.label : `第 ${G.wave} 波 · ${d.label}`);
-  const hearts = '❤️'.repeat(Math.max(0, G.lives));
-  if (force || hudCache.lives !== hearts) { hudCache.lives = hearts; el.lives.textContent = hearts || '💀'; }
+  const hearts = G.lives > 5 ? '❤️×' + G.lives : '❤️'.repeat(Math.max(0, G.lives));
+  if (force || hudCache.lives !== hearts) {
+    hudCache.lives = hearts;
+    el.lives.textContent = hearts || '💀';
+    el.lives.classList.toggle('many', G.lives > 5);
+  }
   const w = WEAPONS[G.weaponType];
   setText(el.wname, 'wname', w.name + ' Lv.' + G.power);
   const pips = el.weapon.children;
