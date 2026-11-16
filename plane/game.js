@@ -3,24 +3,79 @@
 
 const W = 420, H = 740;
 const DPR = Math.min(window.devicePixelRatio || 1, 2);
-const VERSION = '1.0.0';
+const VERSION = '1.1.0';
+const SEEN_KEY = 'planeSeenVersion';
+const CHANGELOG = [
+  {
+    v: '1.1.0', date: '2026-11-16', title: '难度分档 · 武器系统',
+    items: [
+      '三档难度：休闲 / 标准 / 噩梦，敌机耐久、弹速、弹幕与得分倍率各不相同',
+      '三档独立最高分，切换难度即切换纪录',
+      '火力等级提升至 5 级，新增散射霰弹 / 穿透激光 / 追踪导弹',
+      '武器道具掉落与切换：同类拾取升级，异类拾取换武器',
+      'BOSS 必掉火力强化与随机武器 / 护盾',
+      '坠毁后可直接更换难度，无需刷新页面',
+      '版本记录面板与更新提示'
+    ]
+  },
+  {
+    v: '1.0.0', date: null, title: '霓虹突袭 · 初版',
+    items: [
+      '纵版射击核心循环：波次推进、每 5 波 BOSS、道具与炸弹',
+      '键盘 + 触屏双操控，自动开火',
+      'WebAudio 合成音效、三层星空视差与粒子特效'
+    ]
+  }
+];
 
 const DIFFS = {
-  casual: { label: '休闲', spawn: 0.8, bspd: 0.75, espd: 0.85, bombs: 3 },
-  normal: { label: '标准', spawn: 1.0, bspd: 1.0, espd: 1.0, bombs: 2 },
-  hard:   { label: '噩梦', spawn: 1.3, bspd: 1.25, espd: 1.15, bombs: 1 }
+  casual: {
+    label: '休闲', desc: '敌机耐久 80% · 弹速更慢 · 3 机体 / 3 炸弹',
+    spawn: 0.8, bspd: 0.8, espd: 0.85, hp: 0.8, fireInt: 1.3,
+    bossFan: 3, bossRing: 10, lives: 3, bombs: 3, scoreMul: 1
+  },
+  normal: {
+    label: '标准', desc: '经典街机节奏 · 3 机体 / 2 炸弹 · 得分 ×1.5',
+    spawn: 1.0, bspd: 1.0, espd: 1.0, hp: 1.0, fireInt: 1.0,
+    bossFan: 5, bossRing: 16, lives: 3, bombs: 2, scoreMul: 1.5
+  },
+  hard: {
+    label: '噩梦', desc: '敌机耐久 125% · 弹幕密集 · 2 机体 / 1 炸弹 · 得分 ×2',
+    spawn: 1.3, bspd: 1.18, espd: 1.12, hp: 1.25, fireInt: 0.8,
+    bossFan: 7, bossRing: 22, lives: 2, bombs: 1, scoreMul: 2
+  }
 };
+
+/* 武器类型：火力等级 1–5 决定单次弹数与伤害 */
+const WEAPONS = {
+  vulcan:  { name: '脉冲机炮', color: '#a3e635', glyph: '▲' },
+  spread:  { name: '散射霰弹', color: '#fbbf24', glyph: '散' },
+  laser:   { name: '穿透激光', color: '#ff2d78', glyph: '激' },
+  missile: { name: '追踪导弹', color: '#22d3ee', glyph: '导' }
+};
+
+function bestKey(diff) { return 'planeHigh_' + diff; }
+function loadBest(diff) {
+  const v = localStorage.getItem(bestKey(diff));
+  if (v !== null) return Number(v) || 0;
+  return diff === 'normal' ? Number(localStorage.getItem('planeHigh')) || 0 : 0;
+}
 
 const $ = id => document.getElementById(id);
 const canvas = $('game'), ctx = canvas.getContext('2d');
 const stage = $('stage');
 const el = {
   score: $('score'), best: $('best'), wave: $('hudWave'),
-  lives: $('lives'), weapon: $('weapon'), bombCnt: $('bombCnt'), bombBtn: $('bombBtn'),
+  lives: $('lives'), weapon: $('weapon'), wname: $('wname'),
+  bombCnt: $('bombCnt'), bombBtn: $('bombBtn'),
   pauseBtn: $('pauseBtn'), muteBtn: $('muteBtn'), banner: $('banner'),
   menu: $('menu'), pauseOv: $('pauseOv'), overOv: $('overOv'),
   menuBest: $('menuBest'), overScore: $('overScore'), overWave: $('overWave'),
-  overKills: $('overKills'), overBest: $('overBest'), newRecord: $('newRecord')
+  overKills: $('overKills'), overDiff: $('overDiff'), overBest: $('overBest'),
+  newRecord: $('newRecord'), diffDesc: $('diffDesc'),
+  verChip: $('verChip'), verNum: $('verNum'), verNew: $('verNew'),
+  pauseVer: $('pauseVer'), overVer: $('overVer'),
+  verOv: $('verOv'), verList: $('verList'), verCur: $('verCur'), verCloseBtn: $('verCloseBtn')
 };
 
 const rand = (a, b) => a + Math.random() * (b - a);
@@ -76,7 +131,12 @@ const Snd = {
     s.connect(f); f.connect(g); g.connect(this.master);
     s.start(t); s.stop(t + dur + 0.03);
   },
-  shoot() { this.tone('square', 900, 500, 0.06, 0.04); },
+  shoot(type) {
+    if (type === 'laser') this.tone('sawtooth', 1500, 760, 0.05, 0.03);
+    else if (type === 'missile') this.tone('square', 420, 240, 0.09, 0.04);
+    else if (type === 'spread') this.tone('square', 700, 380, 0.06, 0.035);
+    else this.tone('square', 900, 500, 0.06, 0.04);
+  },
   hit() { this.tone('triangle', 320, 180, 0.05, 0.1); },
   boom() { this.burst(0.3, 0.32, 900); this.tone('sine', 160, 40, 0.3, 0.28); },
   bigBoom() { this.burst(0.7, 0.5, 500); this.tone('sine', 120, 30, 0.7, 0.45); },
@@ -92,15 +152,17 @@ const Snd = {
 const G = {
   state: 'menu',
   diff: DIFFS[localStorage.getItem('planeDiff')] ? localStorage.getItem('planeDiff') : 'normal',
-  score: 0, best: Number(localStorage.getItem('planeHigh')) || 0, kills: 0,
+  score: 0, best: 0, kills: 0,
   wave: 0, waveTime: 0, queue: [], transition: 0,
-  lives: 3, bombs: 2, weapon: 1, shield: 0, inv: 0, fireCd: 0,
+  lives: 3, bombs: 2, power: 1, weaponType: 'vulcan',
+  shield: 0, inv: 0, fireCd: 0,
   shake: 0, flash: 0, flashColor: '255,255,255', time: 0,
   overT: 0, overShown: false,
   player: { x: W / 2, y: H - 90 },
   bullets: [], ebullets: [], enemies: [], powers: [], parts: [], floats: [],
   keys: {}, pointer: { active: false, x: W / 2, y: H - 160 }
 };
+G.best = loadBest(G.diff);
 
 /* 星空（三层视差） */
 const stars = [];
@@ -150,22 +212,26 @@ function spawnEnemy(type) {
       sway: rand(0, 6.28), swayAmp: rand(20, 60), score: 100, fireCd: 1e9
     }));
   } else if (type === 'mid') {
+    const hp = Math.max(1, Math.round((3 + Math.floor(n / 4)) * d.hp));
     G.enemies.push(Object.assign(base, {
-      x: rand(40, W - 40), y: -36, r: 16, hp: 3 + Math.floor(n / 4), maxHp: 3 + Math.floor(n / 4),
+      x: rand(40, W - 40), y: -36, r: 16, hp, maxHp: hp,
       vy: (70 + Math.min(n * 4, 70)) * d.espd,
-      sway: rand(0, 6.28), swayAmp: rand(10, 30), score: 300, fireCd: rand(1, 2)
+      sway: rand(0, 6.28), swayAmp: rand(10, 30), score: 300,
+      fireCd: rand(1.6, 2.4) * d.fireInt
     }));
   } else if (type === 'tank') {
+    const hp = Math.max(1, Math.round((8 + Math.floor(n / 2)) * d.hp));
     G.enemies.push(Object.assign(base, {
-      x: rand(50, W - 50), y: -44, r: 22, hp: 8 + Math.floor(n / 2), maxHp: 8 + Math.floor(n / 2),
+      x: rand(50, W - 50), y: -44, r: 22, hp, maxHp: hp,
       vy: (42 + Math.min(n * 2, 40)) * d.espd,
-      sway: rand(0, 6.28), swayAmp: rand(5, 15), score: 600, fireCd: rand(1.5, 2.5)
+      sway: rand(0, 6.28), swayAmp: rand(5, 15), score: 600,
+      fireCd: rand(2, 2.8) * d.fireInt
     }));
   } else {
-    const hp = 60 + n * 12;
+    const hp = Math.round((60 + n * 12) * d.hp);
     G.enemies.push(Object.assign(base, {
       x: W / 2, y: -70, r: 46, hp, maxHp: hp, vy: 60,
-      t: 0, fireT: 1.4, ringT: 3.5, score: 5000
+      t: 0, fireT: 1.4 * d.fireInt, ringT: 3.5, score: 5000
     }));
   }
 }
@@ -210,16 +276,54 @@ function floatText(x, y, txt, color) {
 
 /* ================= 玩家动作 ================= */
 function fire() {
-  const p = G.player;
-  const mk = (x, y, vx, vy) => G.bullets.push({ x, y, vx, vy, r: 3, dmg: 1, dead: false });
-  if (G.weapon === 1) mk(p.x, p.y - 18, 0, -640);
-  else if (G.weapon === 2) { mk(p.x - 7, p.y - 14, 0, -640); mk(p.x + 7, p.y - 14, 0, -640); }
-  else {
-    mk(p.x - 7, p.y - 14, 0, -640); mk(p.x + 7, p.y - 14, 0, -640);
-    mk(p.x - 14, p.y - 6, -130, -560); mk(p.x + 14, p.y - 6, 130, -560);
+  const p = G.player, lvl = G.power, type = G.weaponType;
+  const mk = (x, y, vx, vy, o) => G.bullets.push(Object.assign(
+    { x, y, vx, vy, r: 3, dmg: 1, dead: false, type: 'vulcan', pierce: 0, home: false },
+    o
+  ));
+  let interval = 0.16;
+
+  if (type === 'vulcan') {
+    /* 脉冲机炮：直线弹幕，等级越高弹数越多 */
+    const n = lvl;
+    interval = 0.16 - 0.008 * (lvl - 1);
+    const dmg = 0.9 + 0.1 * lvl;
+    for (let i = 0; i < n; i++) {
+      const k = i - (n - 1) / 2;
+      const a = k * 0.025;
+      mk(p.x + k * 8, p.y - 16, Math.sin(a) * 640, -Math.cos(a) * 640, { dmg, r: 3 });
+    }
+  } else if (type === 'spread') {
+    /* 散射霰弹：扇形覆盖，单发伤害低 */
+    const n = 3 + 2 * (lvl - 1);
+    interval = 0.24 - 0.008 * (lvl - 1);
+    const dmg = 0.5 + 0.06 * lvl;
+    const fan = 0.5 + 0.04 * lvl;
+    for (let i = 0; i < n; i++) {
+      const t = i / (n - 1) - 0.5;
+      const a = t * fan;
+      mk(p.x + t * 12, p.y - 8, Math.sin(a) * 560, -Math.cos(a) * 560, { dmg, r: 2.4, type: 'spread' });
+    }
+  } else if (type === 'laser') {
+    /* 穿透激光：单束高伤贯穿 */
+    interval = 0.14 - 0.008 * (lvl - 1);
+    const dmg = 1.3 + 0.35 * lvl;
+    mk(p.x, p.y - 20, 0, -980, { dmg, r: 4, pierce: 1 + lvl, type: 'laser', len: 26 + lvl * 7 });
+  } else {
+    /* 追踪导弹：数量随等级提升 */
+    interval = 0.38 - 0.035 * (lvl - 1);
+    const dmg = 1.5 + 0.35 * lvl;
+    const n = lvl >= 5 ? 3 : lvl >= 3 ? 2 : 1;
+    for (let i = 0; i < n; i++) {
+      const k = i - (n - 1) / 2;
+      mk(p.x + k * 12, p.y - 10, k * 90, -330, { dmg, r: 4, type: 'missile', home: true });
+    }
   }
-  sparks(p.x, p.y - 20, 2, ['#a3e635', '#e8ecf6'], 60);
-  Snd.shoot();
+
+  G.fireCd = interval;
+  const w = WEAPONS[type];
+  sparks(p.x, p.y - 20, 2, [w.color, '#e8ecf6'], 60);
+  Snd.shoot(type);
 }
 
 function useBomb() {
@@ -261,9 +365,18 @@ function hitPlayer() {
 function applyPower(kind) {
   const p = G.player;
   Snd.power();
+  const w = WEAPONS[kind];
   if (kind === 'weapon') {
-    if (G.weapon < 3) { G.weapon++; floatText(p.x, p.y - 40, '火力提升！', '#a3e635'); }
+    if (G.power < 5) { G.power++; floatText(p.x, p.y - 40, `火力 Lv.${G.power}`, '#a3e635'); }
     else { G.score += 500; floatText(p.x, p.y - 40, '+500', '#a3e635'); }
+  } else if (w) {
+    if (G.weaponType === kind) {
+      if (G.power < 5) { G.power++; floatText(p.x, p.y - 40, `${w.name} Lv.${G.power}`, w.color); }
+      else { G.score += 800; floatText(p.x, p.y - 40, '+800', w.color); }
+    } else {
+      G.weaponType = kind;
+      floatText(p.x, p.y - 40, `切换 ${w.name}`, w.color);
+    }
   } else if (kind === 'shield') {
     G.shield = 6; floatText(p.x, p.y - 40, '护盾 6s', '#22d3ee');
   } else if (kind === 'bomb') {
@@ -274,26 +387,40 @@ function applyPower(kind) {
   syncHud(true);
 }
 
-function dropPower(x, y) {
-  const r = Math.random();
-  const kind = r < 0.4 ? 'weapon' : r < 0.65 ? 'shield' : r < 0.85 ? 'bomb' : 'life';
+const DROP_TABLE = [
+  ['weapon', 30], ['spread', 7], ['laser', 7], ['missile', 7],
+  ['shield', 20], ['bomb', 17], ['life', 5]
+];
+function spawnPower(kind, x, y) {
   G.powers.push({ x, y, vy: 95, kind, sway: rand(0, 6.28), dead: false });
+}
+function dropPower(x, y) {
+  let total = 0;
+  for (const [, w] of DROP_TABLE) total += w;
+  let r = Math.random() * total;
+  let kind = 'weapon';
+  for (const [k, w] of DROP_TABLE) {
+    r -= w;
+    if (r <= 0) { kind = k; break; }
+  }
+  spawnPower(kind, x, y);
 }
 
 function killEnemy(e) {
   if (e.dead) return;
   e.dead = true;
   G.kills++;
-  G.score += e.score;
+  const gained = Math.round(e.score * DIFFS[G.diff].scoreMul);
+  G.score += gained;
   const big = e.type === 'boss';
   explode(e.x, e.y, big || e.type === 'tank');
-  floatText(e.x, e.y, '+' + e.score, big ? '#fbbf24' : '#e8ecf6');
+  floatText(e.x, e.y, '+' + gained, big ? '#fbbf24' : '#e8ecf6');
   G.shake = Math.max(G.shake, big ? 16 : e.r > 18 ? 7 : 3);
   if (big) {
     Snd.bigBoom();
     G.flash = 0.5; G.flashColor = '255,255,255';
-    dropPower(e.x - 30, e.y);
-    dropPower(e.x + 30, e.y);
+    spawnPower('weapon', e.x - 32, e.y);
+    spawnPower(['spread', 'laser', 'missile', 'shield'][Math.floor(Math.random() * 4)], e.x + 32, e.y);
   } else {
     Snd.boom();
     const p = e.type === 'small' ? 0.06 : e.type === 'mid' ? 0.18 : 0.4;
@@ -307,7 +434,9 @@ function startGame() {
   G.state = 'play';
   G.score = 0; G.kills = 0;
   G.wave = 0; G.waveTime = 0; G.queue = []; G.transition = 0;
-  G.lives = 3; G.bombs = d.bombs; G.weapon = 1;
+  G.lives = d.lives; G.bombs = d.bombs;
+  G.power = 1; G.weaponType = 'vulcan';
+  G.best = loadBest(G.diff);
   G.shield = 0; G.inv = 1.5; G.fireCd = 0.3;
   G.shake = 0; G.flash = 0;
   G.overT = 0; G.overShown = false;
@@ -318,6 +447,7 @@ function startGame() {
   el.menu.classList.add('hidden');
   el.pauseOv.classList.add('hidden');
   el.overOv.classList.add('hidden');
+  el.verOv.classList.add('hidden');
   el.pauseBtn.textContent = '⏸';
   Snd.ensure();
   nextWave();
@@ -333,14 +463,29 @@ function gameOver() {
   const isRecord = G.score > G.best;
   if (isRecord) {
     G.best = G.score;
-    localStorage.setItem('planeHigh', String(G.best));
+    localStorage.setItem(bestKey(G.diff), String(G.best));
   }
   el.overScore.textContent = G.score;
   el.overWave.textContent = G.wave;
   el.overKills.textContent = G.kills;
+  el.overDiff.textContent = DIFFS[G.diff].label;
   el.overBest.textContent = G.best;
   el.newRecord.classList.toggle('hidden', !isRecord);
   el.menuBest.textContent = G.best;
+  syncHud(true);
+}
+
+function showMenu() {
+  G.state = 'menu';
+  G.wave = 0;
+  G.score = 0; G.kills = 0;
+  G.enemies.length = 0; G.bullets.length = 0; G.ebullets.length = 0;
+  G.powers.length = 0; G.parts.length = 0; G.floats.length = 0;
+  el.overOv.classList.add('hidden');
+  el.pauseOv.classList.add('hidden');
+  el.verOv.classList.add('hidden');
+  el.menu.classList.remove('hidden');
+  updateDiffUi();
   syncHud(true);
 }
 
@@ -360,6 +505,49 @@ function toggleMute() {
   Snd.setMuted(!Snd.muted);
   el.muteBtn.textContent = Snd.muted ? '🔇' : '🔊';
   el.muteBtn.classList.toggle('off', Snd.muted);
+}
+
+/* ================= 版本管理 ================= */
+function refreshVersionUi() {
+  el.verNum.textContent = 'v' + VERSION;
+  el.verNew.classList.toggle('hidden', localStorage.getItem(SEEN_KEY) === VERSION);
+  const line = 'v' + VERSION + ' · 版本记录';
+  el.pauseVer.textContent = line;
+  el.overVer.textContent = line;
+  el.verCur.textContent = 'v' + VERSION;
+}
+
+function renderChangelog() {
+  el.verList.innerHTML = '';
+  CHANGELOG.forEach((c, i) => {
+    const card = document.createElement('div');
+    card.className = 'ver-card' + (i === 0 ? ' current' : '');
+    card.innerHTML =
+      '<div class="vh"><span class="vn">v' + c.v + '</span>' +
+      '<span class="vd">' + (c.date || '首发版本') + '</span>' +
+      '<span class="vt">' + (i === 0 ? '当前' : '历史') + '</span></div>' +
+      (c.title ? '<div class="vt2">' + c.title + '</div>' : '') +
+      '<ul>' + c.items.map(t => '<li>' + t + '</li>').join('') + '</ul>';
+    el.verList.appendChild(card);
+  });
+  el.verList.scrollTop = 0;
+}
+
+function openVer() {
+  renderChangelog();
+  localStorage.setItem(SEEN_KEY, VERSION);
+  refreshVersionUi();
+  el.verOv.classList.remove('hidden');
+  Snd.ensure(); Snd.wave();
+}
+
+function closeVer() {
+  el.verOv.classList.add('hidden');
+  Snd.hit();
+}
+
+function verOpen() {
+  return !el.verOv.classList.contains('hidden');
 }
 
 /* ================= 更新 ================= */
@@ -416,7 +604,7 @@ function update(dt) {
 
   /* 自动开火 */
   G.fireCd -= dt;
-  if (G.fireCd <= 0) { G.fireCd = 0.16; fire(); }
+  if (G.fireCd <= 0) fire();
 
   /* 波次推进 */
   if (G.transition > 0) {
@@ -427,8 +615,29 @@ function update(dt) {
     while (G.queue.length && G.queue[0].t <= G.waveTime) spawnEnemy(G.queue.shift().type);
   }
 
-  /* 玩家子弹 */
-  for (const b of G.bullets) { b.x += b.vx * dt; b.y += b.vy * dt; }
+  /* 玩家子弹（导弹追踪最近敌机） */
+  for (const b of G.bullets) {
+    if (b.home) {
+      let tgt = null, bd = Infinity;
+      for (const e of G.enemies) {
+        if (e.dead) continue;
+        const dy = e.y - b.y;
+        if (dy > 140) continue;
+        const d2 = (e.x - b.x) ** 2 + dy * dy;
+        if (d2 < bd) { bd = d2; tgt = e; }
+      }
+      if (tgt) {
+        const cur = Math.atan2(b.vy, b.vx);
+        const want = Math.atan2(tgt.y - b.y, tgt.x - b.x);
+        const diff = ((want - cur + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
+        const na = cur + clamp(diff, -7 * dt, 7 * dt);
+        const sp = Math.hypot(b.vx, b.vy);
+        b.vx = Math.cos(na) * sp;
+        b.vy = Math.sin(na) * sp;
+      }
+    }
+    b.x += b.vx * dt; b.y += b.vy * dt;
+  }
   G.bullets = G.bullets.filter(b => b.y > -20 && b.x > -20 && b.x < W + 20 && !b.dead);
 
   /* 敌机 */
@@ -440,10 +649,11 @@ function update(dt) {
       else e.x = W / 2 + Math.sin(e.t * 0.7) * (W / 2 - 70);
       e.fireT -= dt;
       if (e.y >= 100 && e.fireT <= 0) {
-        e.fireT = 1.4;
+        e.fireT = 1.4 * d.fireInt;
         const base = Math.atan2(p.y - e.y, p.x - e.x);
-        for (let i = -2; i <= 2; i++) {
-          const a = base + i * 0.22, sp = 210 * d.bspd;
+        const half = (d.bossFan - 1) / 2;
+        for (let i = -half; i <= half; i++) {
+          const a = base + i * 0.2, sp = 210 * d.bspd;
           G.ebullets.push({ x: e.x, y: e.y + 30, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, r: 5 });
         }
         Snd.hit();
@@ -451,9 +661,10 @@ function update(dt) {
       if (e.hp < e.maxHp * 0.5) {
         e.ringT -= dt;
         if (e.ringT <= 0) {
-          e.ringT = 3.5;
-          for (let i = 0; i < 16; i++) {
-            const a = i / 16 * Math.PI * 2 + e.t, sp = 150 * d.bspd;
+          e.ringT = 3.5 * d.fireInt;
+          const ring = d.bossRing;
+          for (let i = 0; i < ring; i++) {
+            const a = i / ring * Math.PI * 2 + e.t, sp = 150 * d.bspd;
             G.ebullets.push({ x: e.x, y: e.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, r: 4 });
           }
         }
@@ -465,7 +676,7 @@ function update(dt) {
       if (e.type !== 'small' && e.y > 20 && e.y < H * 0.7) {
         e.fireCd -= dt;
         if (e.fireCd <= 0) {
-          e.fireCd = e.type === 'mid' ? rand(1.6, 2.4) : rand(2, 2.8);
+          e.fireCd = (e.type === 'mid' ? rand(1.6, 2.4) : rand(2, 2.8)) * d.fireInt;
           const a = Math.atan2(p.y - e.y, p.x - e.x);
           const sp = (e.type === 'mid' ? 190 : 160) * d.bspd;
           const shots = e.type === 'tank' ? [-0.3, 0, 0.3] : [0];
@@ -490,15 +701,21 @@ function update(dt) {
   for (const b of G.bullets) {
     for (const e of G.enemies) {
       if (e.dead) continue;
+      if (b.hitSet && b.hitSet.has(e)) continue;
       const dx = b.x - e.x, dy = b.y - e.y;
       if (dx * dx + dy * dy < (e.r + b.r) * (e.r + b.r)) {
-        b.dead = true;
         e.hp -= b.dmg;
         e.flash = 0.08;
-        sparks(b.x, b.y, 3, ['#a3e635', '#e8ecf6'], 100);
+        sparks(b.x, b.y, 3, [WEAPONS[b.type].color, '#e8ecf6'], 100);
         Snd.hit();
         if (e.hp <= 0) killEnemy(e);
-        break;
+        if (b.pierce > 0) {
+          b.pierce--;
+          (b.hitSet || (b.hitSet = new Set())).add(e);
+        } else {
+          b.dead = true;
+          break;
+        }
       }
     }
   }
@@ -539,7 +756,7 @@ function update(dt) {
 
   /* 波次清空判定 */
   if (G.state === 'play' && G.transition <= 0 && !G.queue.length && !G.enemies.length) {
-    const bonus = 200 + G.wave * 100;
+    const bonus = Math.round((200 + G.wave * 100) * d.scoreMul);
     G.score += bonus;
     floatText(W / 2, H * 0.4, `波次奖励 +${bonus}`, '#fbbf24');
     G.transition = 2.0;
@@ -558,11 +775,15 @@ function syncHud(force) {
   setText(el.score, 'score', String(G.score));
   setText(el.best, 'best', String(Math.max(G.best, G.score)));
   const bossWave = G.wave > 0 && G.wave % 5 === 0 && G.enemies.some(e => e.type === 'boss');
-  setText(el.wave, 'wave', G.wave === 0 ? '准备' : bossWave ? 'BOSS 战' : `第 ${G.wave} 波`);
+  const d = DIFFS[G.diff];
+  setText(el.wave, 'wave', G.wave === 0 ? '准备 · ' + d.label
+    : bossWave ? 'BOSS 战 · ' + d.label : `第 ${G.wave} 波 · ${d.label}`);
   const hearts = '❤️'.repeat(Math.max(0, G.lives));
   if (force || hudCache.lives !== hearts) { hudCache.lives = hearts; el.lives.textContent = hearts || '💀'; }
+  const w = WEAPONS[G.weaponType];
+  setText(el.wname, 'wname', w.name + ' Lv.' + G.power);
   const pips = el.weapon.children;
-  for (let i = 0; i < 3; i++) pips[i].classList.toggle('on', i < G.weapon);
+  for (let i = 0; i < pips.length; i++) pips[i].classList.toggle('on', i < G.power);
   setText(el.bombCnt, 'bombs', '×' + G.bombs);
   el.bombBtn.disabled = G.bombs <= 0 || G.state !== 'play';
 }
@@ -671,10 +892,13 @@ function drawEnemy(e) {
 }
 
 const POWER_STYLE = {
-  weapon: { c: '#a3e635', g: '▲' },
-  shield: { c: '#22d3ee', g: '◆' },
-  bomb:   { c: '#fbbf24', g: '●' },
-  life:   { c: '#f43f5e', g: '♥' }
+  weapon:  { c: '#a3e635', g: '▲' },
+  spread:  { c: '#fbbf24', g: '散' },
+  laser:   { c: '#ff2d78', g: '激' },
+  missile: { c: '#7dd3fc', g: '导' },
+  shield:  { c: '#22d3ee', g: '◆' },
+  bomb:    { c: '#fbbf24', g: '●' },
+  life:    { c: '#f43f5e', g: '♥' }
 };
 
 function rrect(c, x, y, w, h, r) {
@@ -735,11 +959,30 @@ function draw() {
   /* 敌机 */
   for (const e of G.enemies) drawEnemy(e);
 
-  /* 玩家子弹 */
+  /* 玩家子弹（按武器类型绘制） */
   for (const b of G.bullets) {
-    ctx.shadowColor = 'rgba(163,230,53,0.9)'; ctx.shadowBlur = 8;
-    ctx.fillStyle = '#a3e635';
-    ctx.fillRect(b.x - 1.5, b.y - 7, 3, 12);
+    const c = WEAPONS[b.type] ? WEAPONS[b.type].color : '#a3e635';
+    ctx.shadowColor = c; ctx.shadowBlur = 8;
+    ctx.fillStyle = c;
+    if (b.type === 'laser') {
+      const len = b.len || 34;
+      ctx.fillRect(b.x - 2.4, b.y - len, 4.8, len);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(b.x - 0.9, b.y - len, 1.8, len);
+    } else if (b.type === 'missile') {
+      const a = Math.atan2(b.vy, b.vx) + Math.PI / 2;
+      ctx.save();
+      ctx.translate(b.x, b.y);
+      ctx.rotate(a);
+      ctx.beginPath();
+      ctx.moveTo(0, -6); ctx.lineTo(3.5, 4); ctx.lineTo(0, 2); ctx.lineTo(-3.5, 4);
+      ctx.closePath(); ctx.fill();
+      ctx.restore();
+    } else if (b.type === 'spread') {
+      ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2); ctx.fill();
+    } else {
+      ctx.fillRect(b.x - 1.5, b.y - 7, 3, 12);
+    }
     ctx.shadowBlur = 0;
   }
 
@@ -782,6 +1025,10 @@ document.addEventListener('keydown', e => {
   Snd.ensure();
   G.keys[key] = true;
   if (e.repeat) return;
+  if (verOpen()) {
+    if (key === 'escape' || key === 'enter' || key === ' ') closeVer();
+    return;
+  }
   if (key === 'p') togglePause();
   else if (key === 'm') toggleMute();
   else if (key === 'b' || key === 'x') useBomb();
@@ -819,18 +1066,26 @@ $('startBtn').addEventListener('click', startGame);
 $('retryBtn').addEventListener('click', startGame);
 $('pauseRestartBtn').addEventListener('click', startGame);
 $('resumeBtn').addEventListener('click', togglePause);
+$('menuBtn').addEventListener('click', showMenu);
+el.verChip.addEventListener('click', openVer);
+el.pauseVer.addEventListener('click', openVer);
+el.overVer.addEventListener('click', openVer);
+el.verCloseBtn.addEventListener('click', closeVer);
 el.pauseBtn.addEventListener('click', () => { if (G.state === 'play' || G.state === 'pause') togglePause(); });
 el.muteBtn.addEventListener('click', toggleMute);
 el.bombBtn.addEventListener('click', useBomb);
+function updateDiffUi() {
+  document.querySelectorAll('.diff-btn').forEach(b => b.classList.toggle('sel', b.dataset.diff === G.diff));
+  el.diffDesc.textContent = DIFFS[G.diff].desc;
+  G.best = loadBest(G.diff);
+  el.menuBest.textContent = G.best;
+  el.best.textContent = G.best;
+}
 document.querySelectorAll('.diff-btn').forEach(btn => {
-  if (btn.dataset.diff === G.diff) {
-    document.querySelectorAll('.diff-btn').forEach(b => b.classList.remove('sel'));
-    btn.classList.add('sel');
-  }
   btn.addEventListener('click', () => {
     G.diff = btn.dataset.diff;
     localStorage.setItem('planeDiff', G.diff);
-    document.querySelectorAll('.diff-btn').forEach(b => b.classList.toggle('sel', b === btn));
+    updateDiffUi();
     Snd.ensure(); Snd.hit();
   });
 });
@@ -863,8 +1118,8 @@ function frame(now) {
 /* ================= 启动 ================= */
 el.muteBtn.textContent = Snd.muted ? '🔇' : '🔊';
 el.muteBtn.classList.toggle('off', Snd.muted);
-el.menuBest.textContent = G.best;
-el.best.textContent = G.best;
+updateDiffUi();
+refreshVersionUi();
 syncHud(true);
 resize();
 requestAnimationFrame(frame);

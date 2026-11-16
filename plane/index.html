@@ -123,6 +123,7 @@ canvas{display:block;touch-action:none;border-radius:13px}
   border-color:var(--cyan);color:#04121a;background:var(--cyan);font-weight:700;
   box-shadow:0 0 16px rgba(34,211,238,.5);
 }
+.diff-desc{font-size:11px;color:var(--dim);letter-spacing:1px;min-height:16px;line-height:1.5}
 .help{
   font-size:12px;color:var(--dim);line-height:1.9;
   border:1px dashed var(--line);border-radius:10px;padding:10px 16px;max-width:320px;
@@ -152,7 +153,7 @@ canvas{display:block;touch-action:none;border-radius:13px}
 .best-line{font-size:13px;color:var(--amber)}
 .over-score{font-size:52px;font-weight:900;color:var(--cyan);text-shadow:0 0 24px rgba(34,211,238,.6);font-variant-numeric:tabular-nums}
 .over-title{font-size:24px;font-weight:800;letter-spacing:6px;color:var(--red)}
-.over-stats{display:flex;gap:22px;font-size:13px;color:var(--dim)}
+.over-stats{display:flex;gap:18px;flex-wrap:wrap;justify-content:center;font-size:13px;color:var(--dim)}
 .over-stats b{display:block;font-size:18px;color:var(--text);margin-top:2px}
 .new-record{
   font-size:13px;font-weight:800;color:#04121a;background:var(--amber);
@@ -161,6 +162,57 @@ canvas{display:block;touch-action:none;border-radius:13px}
 }
 @keyframes pulseRec{from{box-shadow:0 0 8px rgba(251,191,36,.5)}to{box-shadow:0 0 22px rgba(251,191,36,.95)}}
 .pause-title{font-size:28px;font-weight:800;letter-spacing:8px;color:var(--cyan)}
+
+/* ===== 版本管理 ===== */
+.ver-chip{
+  position:absolute;left:14px;bottom:14px;
+  display:flex;align-items:center;gap:6px;
+  padding:5px 12px;border-radius:999px;cursor:pointer;
+  border:1px solid rgba(34,211,238,.45);background:rgba(34,211,238,.08);
+  color:var(--cyan);font-size:12px;font-weight:700;letter-spacing:1px;
+  font-variant-numeric:tabular-nums;transition:all .15s;
+}
+.ver-chip:hover{background:rgba(34,211,238,.18);box-shadow:0 0 12px rgba(34,211,238,.35)}
+.ver-new{
+  font-size:9px;font-weight:900;letter-spacing:1px;color:#2a0410;
+  background:var(--magenta);border-radius:999px;padding:2px 6px;
+  animation:pulseRec 1s ease infinite alternate;
+}
+.ver-line{
+  position:absolute;bottom:12px;left:50%;transform:translateX(-50%);
+  border:none;background:none;cursor:pointer;white-space:nowrap;
+  color:var(--dim);font-size:11px;letter-spacing:1px;
+  font-variant-numeric:tabular-nums;transition:color .15s;
+}
+.ver-line:hover{color:var(--cyan)}
+.ver-head{display:flex;align-items:baseline;gap:12px}
+.ver-title{font-size:24px;font-weight:900;letter-spacing:6px;color:var(--cyan);text-shadow:0 0 16px rgba(34,211,238,.5)}
+.ver-cur{font-size:13px;font-weight:800;color:#04121a;background:var(--acid);padding:3px 10px;border-radius:999px;letter-spacing:1px}
+.ver-list{
+  width:100%;max-width:360px;max-height:min(46vh,340px);overflow-y:auto;
+  display:flex;flex-direction:column;gap:10px;padding:2px 8px 2px 2px;text-align:left;
+  scrollbar-width:thin;scrollbar-color:var(--line) transparent;
+}
+.ver-list::-webkit-scrollbar{width:6px}
+.ver-list::-webkit-scrollbar-track{background:rgba(28,39,64,.35);border-radius:3px}
+.ver-list::-webkit-scrollbar-thumb{background:var(--line);border-radius:3px}
+.ver-list::-webkit-scrollbar-thumb:hover{background:var(--cyan)}
+.ver-card{
+  border:1px solid var(--line);border-radius:12px;padding:12px 14px;
+  background:linear-gradient(160deg,#0d1424,#0a0f1c);
+}
+.ver-card.current{border-color:rgba(163,230,53,.55);box-shadow:0 0 14px rgba(163,230,53,.15)}
+.ver-card .vh{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.ver-card .vn{font-size:16px;font-weight:900;color:var(--text);font-variant-numeric:tabular-nums}
+.ver-card.current .vn{color:var(--acid)}
+.ver-card .vd{font-size:11px;color:var(--dim);letter-spacing:1px}
+.ver-card .vt{margin-left:auto;font-size:10px;font-weight:800;letter-spacing:1px;padding:2px 8px;border-radius:999px;border:1px solid var(--line);color:var(--dim)}
+.ver-card.current .vt{border-color:rgba(163,230,53,.6);color:var(--acid);background:rgba(163,230,53,.08)}
+.ver-card .vt2{font-size:12px;font-weight:700;color:var(--cyan);margin-bottom:6px;letter-spacing:1px}
+.ver-card ul{list-style:none;display:flex;flex-direction:column;gap:4px}
+.ver-card li{font-size:12px;color:var(--dim);line-height:1.6;padding-left:14px;position:relative}
+.ver-card li::before{content:"";position:absolute;left:2px;top:8px;width:5px;height:5px;border-radius:50%;background:var(--cyan);opacity:.7}
+.ver-card.current li::before{background:var(--acid)}
 
 /* ===== 底部状态坞 ===== */
 #dock{
@@ -173,7 +225,8 @@ canvas{display:block;touch-action:none;border-radius:13px}
 .dock-label{font-size:10px;color:var(--dim);letter-spacing:2px}
 #lives{font-size:16px;letter-spacing:2px;min-height:20px;white-space:nowrap}
 #weapon{display:flex;gap:4px;min-height:20px;align-items:center}
-.wpip{width:14px;height:6px;border-radius:3px;background:#1c2740}
+#wname{font-size:11px;letter-spacing:1px;color:var(--acid);white-space:nowrap}
+.wpip{width:11px;height:6px;border-radius:3px;background:#1c2740}
 .wpip.on{background:var(--acid);box-shadow:0 0 8px rgba(163,230,53,.7)}
 #bombBtn{
   display:flex;align-items:center;gap:8px;white-space:nowrap;flex-shrink:0;
@@ -224,21 +277,30 @@ canvas{display:block;touch-action:none;border-radius:13px}
         <button class="diff-btn sel" data-diff="normal">标准</button>
         <button class="diff-btn" data-diff="hard">噩梦</button>
       </div>
+      <div class="diff-desc" id="diffDesc"></div>
       <div class="help">
         <b>电脑</b>：<span class="k">↑↓←→</span>/<span class="k">WASD</span> 移动 · 自动开火<br>
         <span class="k">B</span> 炸弹 · <span class="k">P</span> 暂停 · <span class="k">M</span> 静音<br>
         <b>手机</b>：拖动屏幕驾驶战机，自动开火<br>
-        每 5 波遭遇 <b style="color:var(--red)">BOSS</b> · 吃道具强化火力
+        每 5 波遭遇 <b style="color:var(--red)">BOSS</b> · 三档难度独立最高分<br>
+        <b style="color:var(--acid)">▲</b> 火力升级（最高 5 级） ·
+        <b style="color:var(--amber)">散</b> 散射 ·
+        <b style="color:var(--magenta)">激</b> 穿透激光 ·
+        <b style="color:var(--cyan)">导</b> 追踪导弹
       </div>
       <div class="best-line">最高分 <span id="menuBest">0</span></div>
       <button class="big-btn" id="startBtn">开始出击</button>
       <a class="ghost-btn" href="../">← 返回游戏厅</a>
+      <button class="ver-chip" id="verChip" title="查看版本记录">
+        <span id="verNum">v1.1.0</span><span class="ver-new hidden" id="verNew">NEW</span>
+      </button>
     </div>
 
     <div class="overlay hidden" id="pauseOv">
       <div class="pause-title">已暂停</div>
       <button class="big-btn" id="resumeBtn">继续作战</button>
       <button class="ghost-btn" id="pauseRestartBtn">重新开始</button>
+      <button class="ver-line" id="pauseVer" title="查看版本记录"></button>
     </div>
 
     <div class="overlay hidden" id="overOv">
@@ -248,10 +310,22 @@ canvas{display:block;touch-action:none;border-radius:13px}
       <div class="over-stats">
         <div>抵达波次<b id="overWave">1</b></div>
         <div>击坠数<b id="overKills">0</b></div>
+        <div>难度<b id="overDiff">标准</b></div>
         <div>最高分<b id="overBest">0</b></div>
       </div>
       <button class="big-btn mag" id="retryBtn">再次出击</button>
+      <button class="ghost-btn" id="menuBtn">更换难度</button>
       <a class="ghost-btn" href="../">← 返回游戏厅</a>
+      <button class="ver-line" id="overVer" title="查看版本记录"></button>
+    </div>
+
+    <div class="overlay hidden" id="verOv">
+      <div class="ver-head">
+        <div class="ver-title">版本记录</div>
+        <div class="ver-cur" id="verCur">v1.1.0</div>
+      </div>
+      <div class="ver-list" id="verList"></div>
+      <button class="big-btn" id="verCloseBtn">知道了</button>
     </div>
   </div>
 
@@ -261,8 +335,8 @@ canvas{display:block;touch-action:none;border-radius:13px}
       <span id="lives">❤️❤️❤️</span>
     </div>
     <div class="dock-group">
-      <span class="dock-label">火力</span>
-      <div id="weapon"><span class="wpip on"></span><span class="wpip"></span><span class="wpip"></span></div>
+      <span class="dock-label" id="wname">脉冲机炮 Lv.1</span>
+      <div id="weapon"><span class="wpip on"></span><span class="wpip"></span><span class="wpip"></span><span class="wpip"></span><span class="wpip"></span></div>
     </div>
     <button id="bombBtn" title="炸弹 (B)">💣 炸弹 <span class="cnt" id="bombCnt">×2</span></button>
     <div id="dockHint">拖动 / 方向键移动<br>自动开火 · B 炸弹</div>
