@@ -3,9 +3,17 @@
 
 const W = 420, H = 740;
 const DPR = Math.min(window.devicePixelRatio || 1, 2);
-const VERSION = '1.2.0';
+const VERSION = '1.3.0';
 const SEEN_KEY = 'planeSeenVersion';
 const CHANGELOG = [
+  {
+    v: '1.3.0', date: '2026-11-16', title: '平衡回调 · 难度独占',
+    items: [
+      '生命上限 5、炸弹上限 5，满上限拾取转为分数',
+      '追踪导弹调整为休闲难度独占掉落，标准 / 噩梦不再出现',
+      '窄屏状态坞自动压缩心形与炸弹按钮，5 命满员不溢出'
+    ]
+  },
   {
     v: '1.2.0', date: '2026-11-16', title: '补给调整 · 生存上限',
     items: [
@@ -38,7 +46,7 @@ const CHANGELOG = [
 
 const DIFFS = {
   casual: {
-    label: '休闲', desc: '敌机耐久 80% · 弹速更慢 · 3 机体 / 3 炸弹',
+    label: '休闲', desc: '敌机耐久 80% · 弹速更慢 · 3 机体 / 3 炸弹 · 独占追踪导弹',
     spawn: 0.8, bspd: 0.8, espd: 0.85, hp: 0.8, fireInt: 1.3,
     bossFan: 3, bossRing: 10, lives: 3, bombs: 3, scoreMul: 1
   },
@@ -388,9 +396,10 @@ function applyPower(kind) {
   } else if (kind === 'shield') {
     G.shield = 6; floatText(p.x, p.y - 40, '护盾 6s', '#22d3ee');
   } else if (kind === 'bomb') {
-    G.bombs++; floatText(p.x, p.y - 40, '炸弹 +1', '#fbbf24');
+    if (G.bombs < 5) { G.bombs++; floatText(p.x, p.y - 40, '炸弹 +1', '#fbbf24'); }
+    else { G.score += 500; floatText(p.x, p.y - 40, '+500', '#fbbf24'); }
   } else {
-    if (G.lives < 10) { G.lives++; floatText(p.x, p.y - 40, '机体 +1', '#f43f5e'); }
+    if (G.lives < 5) { G.lives++; floatText(p.x, p.y - 40, '机体 +1', '#f43f5e'); }
     else { G.score += 800; floatText(p.x, p.y - 40, '+800', '#f43f5e'); }
   }
   syncHud(true);
@@ -404,11 +413,12 @@ function spawnPower(kind, x, y) {
   G.powers.push({ x, y, vy: 95, kind, sway: rand(0, 6.28), dead: false });
 }
 function dropPower(x, y) {
+  const table = G.diff === 'casual' ? DROP_TABLE : DROP_TABLE.filter(([k]) => k !== 'missile');
   let total = 0;
-  for (const [, w] of DROP_TABLE) total += w;
+  for (const [, w] of table) total += w;
   let r = Math.random() * total;
   let kind = 'weapon';
-  for (const [k, w] of DROP_TABLE) {
+  for (const [k, w] of table) {
     r -= w;
     if (r <= 0) { kind = k; break; }
   }
@@ -429,7 +439,8 @@ function killEnemy(e) {
     Snd.bigBoom();
     G.flash = 0.5; G.flashColor = '255,255,255';
     spawnPower('weapon', e.x - 32, e.y);
-    spawnPower(['spread', 'laser', 'missile', 'shield'][Math.floor(Math.random() * 4)], e.x + 32, e.y);
+    const extra = G.diff === 'casual' ? ['spread', 'laser', 'missile', 'shield'] : ['spread', 'laser', 'shield'];
+    spawnPower(extra[Math.floor(Math.random() * extra.length)], e.x + 32, e.y);
   } else {
     Snd.boom();
     const p = e.type === 'small' ? 0.06 : e.type === 'mid' ? 0.18 : 0.4;
@@ -787,12 +798,8 @@ function syncHud(force) {
   const d = DIFFS[G.diff];
   setText(el.wave, 'wave', G.wave === 0 ? '准备 · ' + d.label
     : bossWave ? 'BOSS 战 · ' + d.label : `第 ${G.wave} 波 · ${d.label}`);
-  const hearts = G.lives > 5 ? '❤️×' + G.lives : '❤️'.repeat(Math.max(0, G.lives));
-  if (force || hudCache.lives !== hearts) {
-    hudCache.lives = hearts;
-    el.lives.textContent = hearts || '💀';
-    el.lives.classList.toggle('many', G.lives > 5);
-  }
+  const hearts = '❤️'.repeat(Math.max(0, G.lives));
+  if (force || hudCache.lives !== hearts) { hudCache.lives = hearts; el.lives.textContent = hearts || '💀'; }
   const w = WEAPONS[G.weaponType];
   setText(el.wname, 'wname', w.name + ' Lv.' + G.power);
   const pips = el.weapon.children;

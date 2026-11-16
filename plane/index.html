@@ -224,7 +224,6 @@ canvas{display:block;touch-action:none;border-radius:13px}
 .dock-group{display:flex;flex-direction:column;gap:3px;flex-shrink:0}
 .dock-label{font-size:10px;color:var(--dim);letter-spacing:2px}
 #lives{font-size:16px;letter-spacing:2px;min-height:20px;white-space:nowrap}
-#lives.many{font-size:14px;letter-spacing:1px}
 #weapon{display:flex;gap:4px;min-height:20px;align-items:center}
 #wname{font-size:11px;letter-spacing:1px;color:var(--acid);white-space:nowrap}
 .wpip{width:11px;height:6px;border-radius:3px;background:#1c2740}
@@ -244,6 +243,8 @@ canvas{display:block;touch-action:none;border-radius:13px}
   #dockHint{display:none}
   .game-title{font-size:34px;letter-spacing:5px}
   #hudWave{font-size:11px;padding:3px 8px}
+  #lives{font-size:11px;letter-spacing:0}
+  #bombBtn{padding:9px 12px;font-size:13px}
 }
 </style>
 </head>
@@ -284,17 +285,17 @@ canvas{display:block;touch-action:none;border-radius:13px}
         <span class="k">B</span> 炸弹 · <span class="k">P</span> 暂停 · <span class="k">M</span> 静音<br>
         <b>手机</b>：拖动屏幕驾驶战机，自动开火<br>
         每 5 波遭遇 <b style="color:var(--red)">BOSS</b> · 三档难度独立最高分<br>
-        💣 炸弹不设上限 · ❤️ 生命上限 10（满命转分数）<br>
+        💣 炸弹上限 5 · ❤️ 生命上限 5（满上限转分数）<br>
         <b style="color:var(--acid)">▲</b> 火力升级（最高 5 级） ·
         <b style="color:var(--amber)">散</b> 散射 ·
         <b style="color:var(--magenta)">激</b> 穿透激光 ·
-        <b style="color:var(--cyan)">导</b> 追踪导弹
+        <b style="color:var(--cyan)">导</b> 追踪导弹（休闲独占）
       </div>
       <div class="best-line">最高分 <span id="menuBest">0</span></div>
       <button class="big-btn" id="startBtn">开始出击</button>
       <a class="ghost-btn" href="../">← 返回游戏厅</a>
       <button class="ver-chip" id="verChip" title="查看版本记录">
-        <span id="verNum">v1.2.0</span><span class="ver-new hidden" id="verNew">NEW</span>
+        <span id="verNum">v1.3.0</span><span class="ver-new hidden" id="verNew">NEW</span>
       </button>
     </div>
 
@@ -324,7 +325,7 @@ canvas{display:block;touch-action:none;border-radius:13px}
     <div class="overlay hidden" id="verOv">
       <div class="ver-head">
         <div class="ver-title">版本记录</div>
-        <div class="ver-cur" id="verCur">v1.2.0</div>
+        <div class="ver-cur" id="verCur">v1.3.0</div>
       </div>
       <div class="ver-list" id="verList"></div>
       <button class="big-btn" id="verCloseBtn">知道了</button>
