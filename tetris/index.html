@@ -2,231 +2,125 @@
 <html lang="zh">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>俄罗斯方块</title>
-
-<style>
-body{
-    margin:0;
-    background:#000;
-    display:flex;
-    flex-direction:column;
-    align-items:center;
-    justify-content:center;
-    color:white;
-    font-family:sans-serif;
-}
-
-canvas{
-    background:#000;
-    margin:10px auto;
-    border:2px solid #444;
-    border-radius:8px;
-}
-
-#score{
-    font-size:18px;
-}
-
-.version{
-    margin-top:4px;
-    font-size:12px;
-    color:#aaa;
-}
-
-.pause-btn{
-    margin-top:8px;
-    padding:4px 16px;
-    border-radius:999px;
-    border:none;
-    background:radial-gradient(circle at 30% 30%, #f4f4f4, #c4c4c4);
-    color:#111;
-    font-size:12px;
-    letter-spacing:1px;
-    cursor:pointer;
-    box-shadow:0 3px 0 #777;
-}
-.pause-btn:active{
-    transform:translateY(2px);
-    box-shadow:0 1px 0 #555;
-}
-
-#controls{
-    margin-top:14px;
-    display:flex;
-    justify-content:space-between;
-    align-items:flex-start;
-    width:260px;
-    max-width:90vw;
-}
-
-.btn{
-    width:44px;
-    height:44px;
-    background:radial-gradient(circle at 30% 30%, #fff, #d2d2d2);
-    color:#000;
-    font-size:18px;
-    font-weight:bold;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    border-radius:10px;
-    user-select:none;
-    -webkit-user-select:none;
-    -webkit-touch-callout:none;
-    touch-action:manipulation;
-    box-shadow:0 3px 0 #777;
-}
-
-.btn:active{
-    transform:translateY(2px);
-    box-shadow:0 1px 0 #555;
-}
-
-.dpad{
-    display:flex;
-    flex-direction:column;
-    align-items:center;
-    gap:6px;
-}
-
-.dpad-row{
-    display:flex;
-    gap:6px;
-}
-
-.dpad-btn{
-    border-radius:8px;
-}
-
-.dpad-spacer{
-    background:transparent;
-    box-shadow:none;
-    pointer-events:none;
-}
-
-.actions{
-    display:flex;
-    flex-direction:column;
-    align-items:center;
-    gap:4px;
-    /* 让 A 键大致与十字键中心对齐 */
-    margin-top:50px;
-}
-
-.action-btn{
-    width:50px;
-    height:50px;
-    border-radius:50%;
-    background:radial-gradient(circle at 30% 30%, #ffb9b9, #e63939);
-    color:#111;
-}
-
-.action-label{
-    font-size:11px;
-    color:#ccc;
-}
-
-.help{
-    margin-top:8px;
-    max-width:260px;
-    font-size:12px;
-    color:#ccc;
-    text-align:left;
-}
-.help summary{
-    cursor:pointer;
-}
-
-@media (max-width: 600px){
-    body{
-        justify-content:flex-start;
-        padding-top:8px;
-    }
-    canvas{
-        margin:6px auto 4px;
-    }
-    #controls{
-        width:260px;
-        margin-top:12px;
-    }
-    .btn{
-        width:50px;
-        height:50px;
-        font-size:18px;
-        box-shadow:0 3px 0 #777;
-    }
-    .action-btn{
-        width:60px;
-        height:60px;
-    }
-    .actions{
-        margin-top:54px;
-    }
-    .pause-btn{
-        font-size:11px;
-        padding:3px 14px;
-        margin-top:6px;
-        box-shadow:0 3px 0 #777;
-    }
-}
-
-@media (max-height: 620px){
-    body{
-        justify-content:flex-start;
-        padding:6px 0 10px;
-    }
-    #controls{
-        margin-top:8px;
-    }
-    .help{
-        font-size:11px;
-    }
-}
-</style>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>俄罗斯方块 · NEON STACK</title>
+<link rel="stylesheet" href="style.css">
 </head>
-
 <body>
+<div id="app">
 
-<details class="help">
-    <summary>游戏操作说明（点击展开）</summary>
-    <ul>
-        <li>电脑：方向键 ← → 移动，↑ 旋转，↓ 快速下落，P 暂停/继续。</li>
-        <li>手机：左侧十字键控制左右移动、下落和旋转（上键），右侧红色 A 也可旋转。</li>
-    </ul>
-</details>
-
-<div id="score">Score: 0</div>
-<div class="version">v1.1.0</div>
-<canvas id="game"></canvas>
-
-<div id="controls">
-    <div class="dpad">
-        <div class="dpad-row">
-            <div class="btn dpad-btn dpad-spacer"></div>
-            <div class="btn dpad-btn" id="up">↑</div>
-            <div class="btn dpad-btn dpad-spacer"></div>
-        </div>
-        <div class="dpad-row">
-            <div class="btn dpad-btn" id="left">←</div>
-            <div class="btn dpad-btn dpad-spacer"></div>
-            <div class="btn dpad-btn" id="right">→</div>
-        </div>
-        <div class="dpad-row">
-            <div class="btn dpad-btn dpad-spacer"></div>
-            <div class="btn dpad-btn" id="down">↓</div>
-            <div class="btn dpad-btn dpad-spacer"></div>
-        </div>
+  <header id="hud">
+    <div class="hud-score">
+      <span class="label">得分</span>
+      <span class="val" id="score">0</span>
     </div>
-    <div class="actions">
-        <div class="btn action-btn" id="rotate">A</div>
-        <div class="action-label">旋转</div>
-        <button id="pauseBtn" class="pause-btn">开始</button>
+    <div class="hud-score best">
+      <span class="label">最高</span>
+      <span class="val" id="best">0</span>
     </div>
+    <div class="hud-chip lv" id="hudLevel">Lv.1</div>
+    <div class="hud-chip ln" id="hudLines">行 0</div>
+    <div class="hud-btns">
+      <button class="icon-btn" id="pauseBtn" title="暂停 (P)">⏸</button>
+      <button class="icon-btn" id="muteBtn" title="声音 (M)">🔊</button>
+    </div>
+  </header>
+
+  <div id="stage">
+    <aside id="left">
+      <div class="panel">
+        <div class="panel-label">HOLD · 暂存</div>
+        <canvas id="hold"></canvas>
+      </div>
+      <div class="chips">
+        <span class="chip b2b hidden" id="b2bChip">B2B ×1.5</span>
+        <span class="chip combo hidden" id="comboChip">COMBO ×0</span>
+      </div>
+    </aside>
+
+    <div id="boardWrap">
+      <canvas id="board"></canvas>
+    </div>
+
+    <aside id="right">
+      <div class="panel">
+        <div class="panel-label">NEXT · 预告</div>
+        <canvas id="next"></canvas>
+      </div>
+    </aside>
+
+    <div id="banner"></div>
+
+    <div class="overlay" id="menu">
+      <div class="game-title">俄罗斯方块</div>
+      <div class="game-sub">NEON STACK · 霓虹堆叠</div>
+      <div class="help">
+        <b>电脑</b>：<span class="k">←→</span> 移动 · <span class="k">↓</span> 软降 · <span class="k">↑</span>/<span class="k">X</span> 顺旋 · <span class="k">Z</span> 逆旋<br>
+        <span class="k">空格</span> 硬降 · <span class="k">C</span> 暂存 · <span class="k">P</span> 暂停 · <span class="k">M</span> 静音 · <span class="k">R</span> 重开<br>
+        <b>手机</b>：底部按键操控，长按方向键连发<br>
+        七袋随机 · SRS 踢墙 · 幽灵落点 · 锁定延迟<br>
+        <b style="color:var(--magenta)">T-SPIN</b> / <b style="color:var(--amber)">B2B</b> / <b style="color:var(--acid)">COMBO</b> / <b style="color:var(--cyan)">全消</b> 额外加分 · 每 10 行提速
+      </div>
+      <div class="best-line">最高分 <span id="menuBest">0</span></div>
+      <button class="big-btn" id="startBtn">开始堆叠</button>
+      <a class="ghost-btn" href="../">← 返回游戏厅</a>
+      <button class="ver-chip" id="verChip" title="查看版本记录">
+        <span id="verNum">v2.0.0</span><span class="ver-new hidden" id="verNew">NEW</span>
+      </button>
+    </div>
+
+    <div class="overlay hidden" id="pauseOv">
+      <div class="pause-title">已暂停</div>
+      <button class="big-btn" id="resumeBtn">继续堆叠</button>
+      <button class="ghost-btn" id="pauseRestartBtn">重新开始</button>
+      <button class="ghost-btn" id="pauseMenuBtn">返回菜单</button>
+      <button class="ver-line" id="pauseVer" title="查看版本记录"></button>
+    </div>
+
+    <div class="overlay hidden" id="overOv">
+      <div class="over-title">堆叠溢出</div>
+      <div class="over-score" id="overScore">0</div>
+      <div class="new-record hidden" id="newRecord">★ 新纪录 ★</div>
+      <div class="over-stats">
+        <div>消行<b id="overLines">0</b></div>
+        <div>等级<b id="overLevel">1</b></div>
+        <div>最高分<b id="overBest">0</b></div>
+      </div>
+      <button class="big-btn mag" id="retryBtn">再次堆叠</button>
+      <button class="ghost-btn" id="menuBtn">返回菜单</button>
+      <button class="ver-line" id="overVer" title="查看版本记录"></button>
+    </div>
+
+    <div class="overlay hidden" id="verOv">
+      <div class="ver-head">
+        <div class="ver-title">版本记录</div>
+        <div class="ver-cur" id="verCur">v2.0.0</div>
+      </div>
+      <div class="ver-list" id="verList"></div>
+      <button class="big-btn" id="verCloseBtn">知道了</button>
+    </div>
+  </div>
+
+  <footer id="dock">
+    <div id="dockHint">←→ 移动 · ↓ 软降 · ↑/X 顺旋 · Z 逆旋<br>空格 硬降 · C 暂存 · P 暂停 · R 重开</div>
+    <div id="pad">
+      <div class="pad-group">
+        <button class="pad-btn mv" id="tLeft" title="左移">←</button>
+        <button class="pad-btn mv" id="tDown" title="软降">↓</button>
+        <button class="pad-btn mv" id="tRight" title="右移">→</button>
+      </div>
+      <div class="pad-group">
+        <button class="pad-btn rt" id="tCCW" title="逆旋">↺</button>
+        <button class="pad-btn rt" id="tCW" title="顺旋">↻</button>
+        <button class="pad-btn hd" id="tHard" title="硬降">⤓</button>
+        <button class="pad-btn hl" id="tHold" title="暂存">⇄</button>
+      </div>
+    </div>
+  </footer>
+
 </div>
-
-
-<script src="game.js"></script>
-
+<script src="js/core.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/game.js"></script>
 </body>
 </html>
