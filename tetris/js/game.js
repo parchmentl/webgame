@@ -1,10 +1,31 @@
 'use strict';
 /* 俄罗斯方块 · 渲染 / 交互 / 界面 */
 
-const VERSION = '2.0.0';
+const VERSION = '2.1.0';
 const SEEN_KEY = 'tetrisSeenVersion';
-const BEST_KEY = 'tetrisBest';
+const DIFF_KEY = 'tetrisDiff';
+const bestKey = d => 'tetrisBest.' + d;
+const DIFFS = {
+  casual: { name: '休闲', desc: '慢重力 · 锁定延迟 0.7s · 适合上手练形', start: 1, grav: 1.6, lock: 0.7 },
+  normal: { name: '标准', desc: '标准重力曲线 · 锁定延迟 0.5s · 竞技计分', start: 1, grav: 1, lock: 0.5 },
+  hard: { name: '噩梦', desc: 'Lv.5 起步 · 快重力 · 锁定延迟 0.35s', start: 5, grav: 0.75, lock: 0.35 }
+};
+const legacyBest = localStorage.getItem('tetrisBest');
+if (legacyBest !== null && localStorage.getItem(bestKey('normal')) === null) {
+  localStorage.setItem(bestKey('normal'), legacyBest);
+  localStorage.removeItem('tetrisBest');
+}
 const CHANGELOG = [
+  {
+    v: '2.1.0', date: '2026-11-19', title: '掌机操控 · 三档难度',
+    items: [
+      '触屏改掌机布局：十字键移动 / 软降 / 硬降，A/B 圆键旋转',
+      'SELECT 暂存、START 暂停 / 开始，斜置 AB 键还原掌机手感',
+      '三档难度：休闲 / 标准 / 噩梦，重力倍率、锁定延迟与起始等级各异',
+      '难度独立最高分并本地持久化，旧版最高分自动归入标准档',
+      '菜单难度说明与结算难度统计，窄屏侧栏压缩保障棋盘尺寸'
+    ]
+  },
   {
     v: '2.0.0', date: '2026-11-16', title: '重构 · 现代规则',
     items: [
@@ -33,8 +54,9 @@ const el = {
   hold: $('hold'), next: $('next'), board: $('board'), boardWrap: $('boardWrap'),
   b2b: $('b2bChip'), combo: $('comboChip'), banner: $('banner'),
   menu: $('menu'), pauseOv: $('pauseOv'), overOv: $('overOv'), verOv: $('verOv'),
-  menuBest: $('menuBest'), overScore: $('overScore'), overLines: $('overLines'),
-  overLevel: $('overLevel'), overBest: $('overBest'), newRecord: $('newRecord'),
+  menuBest: $('menuBest'), menuDiff: $('menuDiff'), diffDesc: $('diffDesc'),
+  overScore: $('overScore'), overLines: $('overLines'),
+  overLevel: $('overLevel'), overDiff: $('overDiff'), overBest: $('overBest'), newRecord: $('newRecord'),
   verChip: $('verChip'), verNum: $('verNum'), verNew: $('verNew'),
   pauseVer: $('pauseVer'), overVer: $('overVer'), verList: $('verList'),
   verCur: $('verCur'), verCloseBtn: $('verCloseBtn'),
@@ -42,8 +64,11 @@ const el = {
   menuBtn: $('menuBtn'), pauseRestartBtn: $('pauseRestartBtn'), pauseMenuBtn: $('pauseMenuBtn')
 };
 
+const savedDiff = localStorage.getItem(DIFF_KEY);
 const G = {
-  mode: 'menu', best: Number(localStorage.getItem(BEST_KEY) || 0),
+  mode: 'menu',
+  diff: DIFFS[savedDiff] ? savedDiff : 'normal',
+  best: Number(localStorage.getItem(bestKey(DIFFS[savedDiff] ? savedDiff : 'normal')) || 0),
   shake: 0, flash: 0, flashColor: '255,255,255',
   parts: [], floats: [], time: 0, overT: 0, overShown: false,
   held: { dir: 0, das: 0, arr: 0, soft: false, softAcc: 0 }
@@ -147,10 +172,11 @@ core.onEvent = (type, d) => {
     G.mode = 'over'; G.overT = 0.9; G.overShown = false;
     G.shake = 16; G.flash = 0.3; G.flashColor = '244,63,94';
     const rec = core.score > G.best;
-    if (rec) { G.best = core.score; localStorage.setItem(BEST_KEY, String(G.best)); }
+    if (rec) { G.best = core.score; localStorage.setItem(bestKey(G.diff), String(G.best)); }
     el.overScore.textContent = core.score;
     el.overLines.textContent = core.lines;
     el.overLevel.textContent = core.level;
+    el.overDiff.textContent = DIFFS[G.diff].name;
     el.overBest.textContent = G.best;
     el.newRecord.classList.toggle('hidden', !rec);
     el.menuBest.textContent = G.best;
@@ -231,12 +257,12 @@ function drawMini(c, type, ox, oy, s, alpha) {
   c.globalAlpha = 1;
 }
 function drawSide() {
-  const hs = vertical ? 19 : 13;
+  const hs = vertical ? 19 : 10;
   hctx.clearRect(0, 0, el.hold.width / DPR, el.hold.height / DPR);
   if (core.hold) drawMini(hctx, core.hold, el.hold.width / DPR / 2, el.hold.height / DPR / 2, hs, core.holdUsed ? 0.35 : 1);
   const nw = el.next.width / DPR, nh = el.next.height / DPR;
   nctx.clearRect(0, 0, nw, nh);
-  const ns = vertical ? 17 : 12;
+  const ns = vertical ? 17 : 11;
   for (let i = 0; i < 5; i++) {
     const t = core.queue[i];
     if (vertical) drawMini(nctx, t, nw / 2, (i + 0.5) * nh / 5, ns, i === 0 ? 1 : 0.75 - i * 0.08);
@@ -317,12 +343,12 @@ function drawBoard(dt) {
 function resize() {
   vertical = !window.matchMedia('(max-width:700px)').matches;
   // 先定侧栏画布尺寸再量棋盘区：默认 300×150 画布会在窄屏撑高横排，污染首次测量
-  const hs = vertical ? 76 : 52;
+  const hs = vertical ? 76 : 44;
   el.hold.style.width = hs + 'px'; el.hold.style.height = hs + 'px';
   el.hold.width = hs * DPR; el.hold.height = hs * DPR;
   hctx.setTransform(DPR, 0, 0, DPR, 0, 0);
-  const nw = vertical ? 76 : 250;
-  const nh = vertical ? Math.max(120, Math.min(316, el.boardWrap.clientHeight - 8)) : 52;
+  const nw = vertical ? 76 : 230;
+  const nh = vertical ? Math.max(120, Math.min(316, el.boardWrap.clientHeight - 8)) : 44;
   el.next.style.width = nw + 'px'; el.next.style.height = nh + 'px';
   el.next.width = nw * DPR; el.next.height = nh * DPR;
   nctx.setTransform(DPR, 0, 0, DPR, 0, 0);
@@ -337,8 +363,22 @@ function resize() {
 
 /* ================= 流程 ================= */
 function releaseHeld() { G.held.dir = 0; G.held.das = 0; G.held.arr = 0; G.held.soft = false; G.held.softAcc = 0; }
+function diffOpts() {
+  const d = DIFFS[G.diff];
+  return { startLevel: d.start, gravMul: d.grav, lockDelay: d.lock };
+}
+function setDiff(d) {
+  if (!DIFFS[d]) return;
+  G.diff = d;
+  localStorage.setItem(DIFF_KEY, d);
+  G.best = Number(localStorage.getItem(bestKey(d)) || 0);
+  document.querySelectorAll('.diff-btn').forEach(b => b.classList.toggle('sel', b.dataset.diff === d));
+  el.diffDesc.textContent = DIFFS[d].desc;
+  el.menuDiff.textContent = DIFFS[d].name;
+  syncHud(true);
+}
 function startGame() {
-  core.reset();
+  core.reset(diffOpts());
   G.mode = 'play'; G.parts.length = 0; G.floats.length = 0;
   G.shake = 0; G.flash = 0; G.overShown = false;
   releaseHeld();
@@ -349,7 +389,7 @@ function startGame() {
 }
 function showMenu() {
   G.mode = 'menu';
-  core.reset();
+  core.reset(diffOpts());
   G.parts.length = 0; G.floats.length = 0; G.shake = 0; G.flash = 0;
   releaseHeld();
   el.menu.classList.remove('hidden');
@@ -440,6 +480,15 @@ bindTap('tCW', () => core.rotate(1));
 bindTap('tCCW', () => core.rotate(-1));
 bindTap('tHard', () => core.hardDrop());
 bindTap('tHold', () => core.holdSwap());
+$('tPause').addEventListener('pointerdown', e => {
+  e.preventDefault(); Snd.ensure();
+  if (G.mode === 'menu' || G.mode === 'over') startGame();
+  else togglePause();
+});
+$('tPause').addEventListener('contextmenu', e => e.preventDefault());
+document.querySelectorAll('.diff-btn').forEach(b => b.addEventListener('click', () => {
+  setDiff(b.dataset.diff); Snd.ensure(); Snd.ui();
+}));
 
 el.startBtn.addEventListener('click', startGame);
 el.retryBtn.addEventListener('click', startGame);
@@ -489,6 +538,7 @@ function loop(ts) {
 /* ================= 启动 ================= */
 el.muteBtn.textContent = Snd.muted ? '🔇' : '🔊';
 el.muteBtn.classList.toggle('off', Snd.muted);
+setDiff(G.diff);
 refreshVersionUi();
 resize();
 window.addEventListener('resize', resize);
@@ -496,4 +546,4 @@ window.matchMedia('(max-width:700px)').addEventListener('change', resize);
 syncHud(true);
 requestAnimationFrame(loop);
 
-window.T = { core, G, Snd, startGame, showMenu, togglePause, resize, get cell() { return CELL; } };
+window.T = { core, G, Snd, startGame, showMenu, togglePause, resize, setDiff, diffs: DIFFS, get cell() { return CELL; } };

@@ -54,18 +54,24 @@
     <div class="overlay" id="menu">
       <div class="game-title">俄罗斯方块</div>
       <div class="game-sub">NEON STACK · 霓虹堆叠</div>
+      <div class="diff-row">
+        <button class="diff-btn" data-diff="casual">休闲</button>
+        <button class="diff-btn sel" data-diff="normal">标准</button>
+        <button class="diff-btn" data-diff="hard">噩梦</button>
+      </div>
+      <div class="diff-desc" id="diffDesc"></div>
       <div class="help">
         <b>电脑</b>：<span class="k">←→</span> 移动 · <span class="k">↓</span> 软降 · <span class="k">↑</span>/<span class="k">X</span> 顺旋 · <span class="k">Z</span> 逆旋<br>
         <span class="k">空格</span> 硬降 · <span class="k">C</span> 暂存 · <span class="k">P</span> 暂停 · <span class="k">M</span> 静音 · <span class="k">R</span> 重开<br>
-        <b>手机</b>：底部按键操控，长按方向键连发<br>
+        <b>手机</b>：掌机十字键移动 / 软降，<span class="k">⤓</span> 硬降 · <span class="k">A</span>/<span class="k">B</span> 旋转 · SELECT 暂存 · START 暂停<br>
         七袋随机 · SRS 踢墙 · 幽灵落点 · 锁定延迟<br>
         <b style="color:var(--magenta)">T-SPIN</b> / <b style="color:var(--amber)">B2B</b> / <b style="color:var(--acid)">COMBO</b> / <b style="color:var(--cyan)">全消</b> 额外加分 · 每 10 行提速
       </div>
-      <div class="best-line">最高分 <span id="menuBest">0</span></div>
+      <div class="best-line"><span id="menuDiff">标准</span>最高分 <span id="menuBest">0</span></div>
       <button class="big-btn" id="startBtn">开始堆叠</button>
       <a class="ghost-btn" href="../">← 返回游戏厅</a>
       <button class="ver-chip" id="verChip" title="查看版本记录">
-        <span id="verNum">v2.0.0</span><span class="ver-new hidden" id="verNew">NEW</span>
+        <span id="verNum">v2.1.0</span><span class="ver-new hidden" id="verNew">NEW</span>
       </button>
     </div>
 
@@ -84,6 +90,7 @@
       <div class="over-stats">
         <div>消行<b id="overLines">0</b></div>
         <div>等级<b id="overLevel">1</b></div>
+        <div>难度<b id="overDiff">标准</b></div>
         <div>最高分<b id="overBest">0</b></div>
       </div>
       <button class="big-btn mag" id="retryBtn">再次堆叠</button>
@@ -94,7 +101,7 @@
     <div class="overlay hidden" id="verOv">
       <div class="ver-head">
         <div class="ver-title">版本记录</div>
-        <div class="ver-cur" id="verCur">v2.0.0</div>
+        <div class="ver-cur" id="verCur">v2.1.0</div>
       </div>
       <div class="ver-list" id="verList"></div>
       <button class="big-btn" id="verCloseBtn">知道了</button>
@@ -104,16 +111,32 @@
   <footer id="dock">
     <div id="dockHint">←→ 移动 · ↓ 软降 · ↑/X 顺旋 · Z 逆旋<br>空格 硬降 · C 暂存 · P 暂停 · R 重开</div>
     <div id="pad">
-      <div class="pad-group">
-        <button class="pad-btn mv" id="tLeft" title="左移">←</button>
-        <button class="pad-btn mv" id="tDown" title="软降">↓</button>
-        <button class="pad-btn mv" id="tRight" title="右移">→</button>
+      <div class="dpad">
+        <button class="dpad-btn up" id="tHard" title="硬降">⤓</button>
+        <button class="dpad-btn lf" id="tLeft" title="左移">←</button>
+        <div class="dpad-hub"></div>
+        <button class="dpad-btn rt" id="tRight" title="右移">→</button>
+        <button class="dpad-btn dn" id="tDown" title="软降">↓</button>
       </div>
-      <div class="pad-group">
-        <button class="pad-btn rt" id="tCCW" title="逆旋">↺</button>
-        <button class="pad-btn rt" id="tCW" title="顺旋">↻</button>
-        <button class="pad-btn hd" id="tHard" title="硬降">⤓</button>
-        <button class="pad-btn hl" id="tHold" title="暂存">⇄</button>
+      <div class="pill-col">
+        <div class="pill-wrap">
+          <button class="pill" id="tHold" title="暂存"></button>
+          <span class="pill-label">SELECT</span>
+        </div>
+        <div class="pill-wrap">
+          <button class="pill" id="tPause" title="暂停 / 开始"></button>
+          <span class="pill-label">START</span>
+        </div>
+      </div>
+      <div class="ab">
+        <div class="ab-wrap b">
+          <button class="ab-btn b" id="tCCW" title="逆旋">B</button>
+          <span class="ab-label">逆旋 ↺</span>
+        </div>
+        <div class="ab-wrap a">
+          <button class="ab-btn a" id="tCW" title="顺旋">A</button>
+          <span class="ab-label">顺旋 ↻</span>
+        </div>
       </div>
     </div>
   </footer>

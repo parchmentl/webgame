@@ -60,13 +60,15 @@ function gravitySec(level) {
 class TetrisCore {
   constructor() { this.onEvent = () => {}; this.reset(); }
 
-  reset() {
+  reset(opts = {}) {
     this.grid = Array.from({ length: ROWS }, () => Array(COLS).fill(null));
     this.bag = [];
     this.queue = [];
     while (this.queue.length < 5) this.queue.push(this.draw());
     this.hold = null; this.holdUsed = false;
-    this.score = 0; this.lines = 0; this.level = 1;
+    this.score = 0; this.lines = 0; this.level = opts.startLevel || 1;
+    this.gravMul = opts.gravMul || 1;
+    this.lockDelay = opts.lockDelay || LOCK_DELAY;
     this.combo = -1; this.b2b = false;
     this.state = 'play';
     this.gravAcc = 0; this.lockT = 0; this.lockResets = 0;
@@ -196,7 +198,7 @@ class TetrisCore {
       return;
     }
     if (this.state !== 'play') return;
-    const interval = gravitySec(this.level);
+    const interval = gravitySec(this.level) * this.gravMul;
     this.gravAcc += dt;
     while (this.gravAcc >= interval) {
       this.gravAcc -= interval;
@@ -206,7 +208,7 @@ class TetrisCore {
     }
     if (this.grounded()) {
       this.lockT += dt;
-      if (this.lockT >= LOCK_DELAY) this.lock();
+      if (this.lockT >= this.lockDelay) this.lock();
     } else this.lockT = 0;
   }
 
