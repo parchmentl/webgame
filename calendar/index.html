@@ -2,39 +2,125 @@
 <html lang="zh">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>万年历</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>万年历 · 霓虹历书</title>
 <link rel="stylesheet" href="./style.css">
 </head>
 <body>
 
-<div class="container">
-  <h1>万年历</h1>
+<div id="app">
+  <header id="top">
+    <div class="brand">
+      <h1>万年历</h1>
+      <div class="sub">PERPETUAL ALMANAC · 1900–2100</div>
+    </div>
+    <div class="top-right">
+      <a class="ghost-btn" href="../">← 游戏厅</a>
+      <button class="ver-chip" id="verChip" title="查看版本记录">
+        <span id="verNum">v2.0.0</span><span class="ver-new hidden" id="verNew">NEW</span>
+      </button>
+    </div>
+  </header>
 
-  <div class="controls">
-    <input type="number" id="yearInput" placeholder="年份" min="1900" max="2100">
-    <input type="month" id="monthInput">
-    <button onclick="goToday()">今天</button>
-    <button onclick="prevMonth()">上月</button>
-    <button onclick="nextMonth()">下月</button>
-  </div>
+  <nav id="toolbar">
+    <div class="nav-group">
+      <button class="nav-btn" id="prevYear" title="上一年">«</button>
+      <button class="nav-btn" id="prevMonth" title="上一月">‹</button>
+      <button id="ymBtn" title="跳转运年月"><span id="ymLabel">2026年11月</span><span class="caret">▾</span></button>
+      <button class="nav-btn" id="nextMonth" title="下一月">›</button>
+      <button class="nav-btn" id="nextYear" title="下一年">»</button>
+    </div>
+    <div class="nav-group right">
+      <button class="pill-btn acid" id="todayBtn">今天</button>
+      <div class="view-toggle">
+        <button id="viewMonth" class="active">月</button>
+        <button id="viewYear">年</button>
+      </div>
+    </div>
+  </nav>
 
-  <div class="calendar-grid" id="calendar"></div>
+  <main id="main">
+    <section id="calWrap">
+      <div id="monthView">
+        <div id="weekHead">
+          <span class="wk">日</span><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span class="wk">六</span>
+        </div>
+        <div id="grid"></div>
+      </div>
 
-  <div class="info" id="info"></div>
+      <div id="yearView" class="hidden">
+        <div id="yearGrid"></div>
+      </div>
 
-  <div class="version">v1.0.0</div>
+      <div id="legend">
+        <span><i class="dot fest"></i>节日</span>
+        <span><i class="dot term"></i>节气</span>
+        <span><i class="dot today"></i>今天</span>
+        <span><i class="dot sel"></i>选中</span>
+        <span class="hint">点击日期看黄历 · 方向键移动 · PgUp/PgDn 翻月 · T 回今天 · Y 年视图</span>
+      </div>
+    </section>
+
+    <aside id="detail" aria-label="黄历详情">
+      <div class="d-handle"></div>
+      <button id="dClose" title="关闭">✕</button>
+      <div class="d-ym" id="dYm">2026年11月</div>
+      <div class="d-big">
+        <div class="d-day" id="dDay">19</div>
+        <div class="d-side">
+          <div class="d-week" id="dWeek">星期四</div>
+          <div class="d-lunar" id="dLunar">农历十月初一</div>
+        </div>
+      </div>
+      <div class="d-chips" id="dChips"></div>
+      <div class="d-term" id="dTerm"></div>
+      <div class="d-block" id="dFestBlock">
+        <div class="d-label">节日</div>
+        <div class="d-chips" id="dFests"></div>
+      </div>
+      <div class="d-block" id="dOffBlock">
+        <div class="d-label">十二建 · 民俗参考</div>
+        <div class="d-off" id="dOff"></div>
+        <div class="d-yiji">
+          <div class="yi-row"><span class="yi-tag">宜</span><div class="d-chips" id="dYi"></div></div>
+          <div class="ji-row"><span class="ji-tag">忌</span><div class="d-chips" id="dJi"></div></div>
+        </div>
+      </div>
+      <div class="d-stats" id="dStats"></div>
+      <button class="ghost-btn wide hidden" id="backToday">回到今天</button>
+    </aside>
+  </main>
 </div>
 
-<div class="drawer-overlay" id="drawerOverlay"></div>
-<aside class="almanac-drawer" id="almanacDrawer" aria-hidden="true">
-  <div class="drawer-header">
-    <h2>黄历</h2>
-    <button type="button" id="drawerCloseBtn">关闭</button>
-  </div>
-  <div class="drawer-content" id="drawerContent">点击日历中的日期查看黄历</div>
-</aside>
+<div id="scrim" class="hidden"></div>
 
-<script src="./script.js"></script>
+<div class="overlay hidden" id="jumpOv">
+  <div class="ov-card">
+    <div class="ov-title">跳转年月</div>
+    <div class="jump-year">
+      <button class="nav-btn" id="jumpPrev">‹</button>
+      <input type="number" id="jumpYear" min="1900" max="2100" value="2026">
+      <button class="nav-btn" id="jumpNext">›</button>
+    </div>
+    <div class="jump-range">支持 1900 – 2100 年</div>
+    <div id="jumpMonths"></div>
+    <div class="ov-btns">
+      <button class="ghost-btn" id="jumpCancel">取消</button>
+      <button class="pill-btn acid" id="jumpToday">回到今天</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay hidden" id="verOv">
+  <div class="ver-head">
+    <div class="ver-title">版本记录</div>
+    <div class="ver-cur" id="verCur">v2.0.0</div>
+  </div>
+  <div class="ver-list" id="verList"></div>
+  <button class="big-btn" id="verCloseBtn">知道了</button>
+</div>
+
+<script src="./js/core.js"></script>
+<script src="./js/app.js"></script>
 </body>
 </html>
