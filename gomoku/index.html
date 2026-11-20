@@ -1,101 +1,141 @@
 ﻿<!DOCTYPE html>
 <html lang="zh">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>五子棋（AI对弈）</title>
-<style>
-:root {
-  --bg: #f4efe3;
-  --panel: #ffffff;
-  --text: #2b2b2b;
-  --accent: #825e38;
-}
-* { box-sizing: border-box; }
-body {
-  margin: 0;
-  min-height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: radial-gradient(circle at top, #fbf7ef 0%, var(--bg) 60%);
-  font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
-  color: var(--text);
-}
-.wrap {
-  width: min(92vw, 620px);
-  max-height: 95vh;
-  background: var(--panel);
-  border-radius: 16px;
-  box-shadow: 0 14px 34px rgba(0,0,0,0.12);
-  padding: 16px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-.head {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 12px;
-  width: 100%;
-}
-h1 { margin: 0; font-size: 22px; }
-#status { font-size: 15px; color: #5f5f5f; }
-.version {
-  font-size: 12px;
-  color: #999;
-  margin-top: 2px;
-}
-.actions { display: flex; gap: 8px; }
-button {
-  border: none;
-  border-radius: 10px;
-  padding: 8px 12px;
-  background: var(--accent);
-  color: #fff;
-  cursor: pointer;
-  font-size: 14px;
-}
-button:active { transform: translateY(1px); }
-.board {
-  width: 100%;
-  aspect-ratio: 1 / 1;
-  border-radius: 12px;
-  overflow: hidden;
-}
-canvas {
-  width: 100%;
-  height: 100%;
-  display: block;
-  background: linear-gradient(180deg, #e9c88f 0%, #dfba7a 100%);
-  touch-action: none;
-  border-radius: 12px;
-}
-.tip {
-  margin-top: 10px;
-  font-size: 13px;
-  color: #666;
-}
-</style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>五子棋 · 霓虹棋局</title>
+<link rel="stylesheet" href="style.css">
 </head>
 <body>
-<div class="wrap">
-  <div class="head">
-    <div>
-      <h1>五子棋（AI对弈）</h1>
-      <div id="status">当前：黑棋</div>
-      <div class="version" id="version"></div>
+<div id="app">
+  <header id="top">
+    <div id="brand">
+      <h1>五子棋</h1>
+      <span>NEON GOMOKU · 15×15 无禁手</span>
     </div>
-    <div class="actions">
-      <button id="reset">重新开始</button>
+    <div id="topBtns">
+      <button id="muteBtn" class="icon-btn" title="音效开关（M）" aria-pressed="false" aria-label="音效开关">
+        <svg viewBox="0 0 24 24"><path d="M4 9v6h4l6 5V4L8 9H4z"/><path class="wave" d="M16.5 8.5a5 5 0 0 1 0 7" fill="none" stroke-width="2" stroke-linecap="round"/><path class="wave" d="M18.8 6a8.4 8.4 0 0 1 0 12" fill="none" stroke-width="2" stroke-linecap="round"/><path class="slash" d="M4 4l16 16" fill="none" stroke-width="2.4" stroke-linecap="round"/></svg>
+      </button>
+      <button id="verChip" class="ver-chip">v<span id="verNum">2.0.0</span><span id="verNew" class="ver-new hidden">NEW</span></button>
+      <a id="back" href="../">← 游戏厅</a>
+    </div>
+  </header>
+
+  <div id="bar">
+    <div id="modeRow" class="seg">
+      <button data-mode="pvp">双人对战</button>
+      <button data-mode="ai" class="cur">人机对弈</button>
+    </div>
+    <div id="levelRow" class="chips">
+      <button data-level="1">菜鸟</button>
+      <button data-level="2">入门</button>
+      <button data-level="3" class="cur">进阶</button>
+      <button data-level="4">高手</button>
+      <button data-level="5">大师</button>
+    </div>
+    <div id="sideRow" class="seg">
+      <button data-side="1" class="cur">执黑</button>
+      <button data-side="2">执白</button>
     </div>
   </div>
-  <div class="board"><canvas id="board"></canvas></div>
-  <div class="tip">规则：黑白轮流落子，先连成五子者胜。</div>
+
+  <main id="main">
+    <div id="boardWrap"><canvas id="board" aria-label="五子棋棋盘"></canvas></div>
+    <aside id="side">
+      <div class="card" id="turnCard">
+        <span id="turnStone" class="stone black"></span>
+        <div id="turnText">
+          <b id="turnName">你的回合</b>
+          <span id="turnTag">执黑</span>
+        </div>
+        <span id="think" class="hidden"><i></i><i></i><i></i></span>
+      </div>
+      <div class="card row-card"><label>手数</label><b id="moveCount">0</b></div>
+      <div class="card">
+        <label class="card-title">战绩</label>
+        <div class="stats">
+          <div><span>双人黑胜</span><b id="stPb">0</b></div>
+          <div><span>双人白胜</span><b id="stPw">0</b></div>
+          <div><span>人机胜</span><b id="stAw">0</b></div>
+          <div><span>人机负</span><b id="stAl">0</b></div>
+          <div><span>平局</span><b id="stAd">0</b></div>
+        </div>
+      </div>
+      <div class="card help">
+        <label class="card-title">操作</label>
+        <p>点击 / 触屏落子 · 方向键移动光标 · 回车落子</p>
+        <p>U 悔棋 · H 提示 · R 重开 · M 静音 · Esc 菜单</p>
+        <p>先连成五子者胜，长连亦胜；人机悔棋一次回退两手。</p>
+      </div>
+    </aside>
+  </main>
+
+  <div id="actions">
+    <span id="turnChip">你的回合</span>
+    <div id="actBtns">
+      <button id="undoBtn" class="mid-btn">悔棋</button>
+      <button id="hintBtn" class="mid-btn">提示</button>
+      <button id="restartBtn" class="mid-btn">重开</button>
+      <button id="menuBtn" class="mid-btn accent">菜单</button>
+    </div>
+  </div>
 </div>
 
-<script src="game.js"></script>
+<div id="menuOv" class="overlay hidden">
+  <div class="ov-card">
+    <h2 class="ov-title">五子棋</h2>
+    <p class="ov-sub">霓虹棋局 · 黑白轮流 · 先五连者胜</p>
+    <div id="mModeRow" class="mode-cards">
+      <button data-mode="pvp"><b>双人对战</b><span>同屏轮流执子，面对面博弈</span></button>
+      <button data-mode="ai" class="cur"><b>人机对弈</b><span>五档棋力，从菜鸟到大师</span></button>
+    </div>
+    <label class="ov-label">AI 棋力</label>
+    <div id="mLevelRow" class="chips wide">
+      <button data-level="1">菜鸟</button>
+      <button data-level="2">入门</button>
+      <button data-level="3" class="cur">进阶</button>
+      <button data-level="4">高手</button>
+      <button data-level="5">大师</button>
+    </div>
+    <label class="ov-label">执子</label>
+    <div id="mSideRow" class="seg wide">
+      <button data-side="1" class="cur">执黑先行</button>
+      <button data-side="2">执白后行</button>
+    </div>
+    <div class="m-stats">
+      <span>双人 黑<b id="mStPb">0</b> / 白<b id="mStPw">0</b></span>
+      <span>人机 胜<b id="mStAw">0</b> / 负<b id="mStAl">0</b> / 平<b id="mStAd">0</b></span>
+    </div>
+    <button id="startBtn" class="big-btn">开始对局</button>
+    <button id="resumeBtn" class="mid-btn wide-btn hidden">继续当前对局</button>
+  </div>
+</div>
+
+<div id="overOv" class="overlay hidden">
+  <div class="ov-card small">
+    <h2 class="ov-title" id="overTitle">黑方获胜</h2>
+    <p class="ov-sub" id="overSub">共 0 手</p>
+    <div class="ov-row">
+      <button id="againBtn" class="big-btn">再来一局</button>
+      <button id="overMenuBtn" class="mid-btn">菜单</button>
+    </div>
+  </div>
+</div>
+
+<div id="verOv" class="overlay hidden">
+  <div class="ov-card">
+    <div class="ver-head">
+      <span class="ver-title">更新日志</span>
+      <span class="ver-cur">当前 v<span id="verCur">2.0.0</span></span>
+    </div>
+    <div id="verList"></div>
+    <button id="verCloseBtn" class="big-btn">知道了</button>
+  </div>
+</div>
+
+<script src="js/engine.js"></script>
+<script src="js/sfx.js"></script>
+<script src="js/ui.js"></script>
 </body>
 </html>
