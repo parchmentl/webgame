@@ -1,53 +1,153 @@
-<!doctype html>
-<html lang="zh-CN">
+<!DOCTYPE html>
+<html lang="zh">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1" />
-<title>中国象棋 · 双人对弈（HTML单文件）</title>
-<link rel="stylesheet" href="./style.css" />
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>中国象棋 · 霓虹棋局</title>
+<link rel="stylesheet" href="style.css">
 </head>
 <body>
-<div class="app">
-  <div class="boardWrap">
-    <canvas id="cv" width="520" height="580"></canvas>
+<div id="app">
+  <header id="top">
+    <div id="brand">
+      <h1>中国象棋</h1>
+      <span>NEON XIANGQI · 9×10 · 楚河漢界</span>
+    </div>
+    <div id="topBtns">
+      <button id="muteBtn" class="icon-btn" title="音效开关（M）" aria-pressed="false" aria-label="音效开关">
+        <svg viewBox="0 0 24 24"><path d="M4 9v6h4l6 5V4L8 9H4z"/><path class="wave" d="M16.5 8.5a5 5 0 0 1 0 7" fill="none" stroke-width="2" stroke-linecap="round"/><path class="wave" d="M18.8 6a8.4 8.4 0 0 1 0 12" fill="none" stroke-width="2" stroke-linecap="round"/><path class="slash" d="M4 4l16 16" fill="none" stroke-width="2.4" stroke-linecap="round"/></svg>
+      </button>
+      <button id="verChip" class="ver-chip">v<span id="verNum">2.0.0</span><span id="verNew" class="ver-new hidden">NEW</span></button>
+      <a id="back" href="../">← 游戏厅</a>
+    </div>
+  </header>
+
+  <div id="bar">
+    <div id="modeRow" class="seg">
+      <button data-mode="pvp">双人对战</button>
+      <button data-mode="ai" class="cur">人机对弈</button>
+    </div>
+    <div id="levelRow" class="chips">
+      <button data-level="1">菜鸟</button>
+      <button data-level="2">入门</button>
+      <button data-level="3" class="cur">进阶</button>
+      <button data-level="4">高手</button>
+      <button data-level="5">大师</button>
+    </div>
+    <div id="sideRow" class="seg">
+      <button data-side="1" class="cur">执红</button>
+      <button data-side="-1">执黑</button>
+    </div>
   </div>
 
-  <div class="side">
-    <div class="title">
-      <h1>中国象棋 · 双人对弈</h1>
-      <div class="ver">v1.0.2</div>
-    </div>
-
-    <div class="row">
-      <div class="pill"><span class="dot red"></span>红方</div>
-      <div class="pill"><span class="dot black"></span>黑方</div>
-      <div class="pill"><span class="dot" id="turnDot"></span><span id="turnText">红先</span></div>
-    </div>
-
-    <div class="row">
-      <button id="btnReset">重新开局</button>
-      <button id="btnUndo">悔棋</button>
-    </div>
-
-    <div class="status" id="status">
-      <div>点击棋子选择，再点击目标格落子。</div>
-      <div>提示：红方在下（y=9），黑方在上（y=0）。</div>
-    </div>
-
-    <div class="log">
-      <div class="logHeader">
-        <span>走子记录</span>
-        <span class="kbd">click</span>
+  <main id="main">
+    <div id="boardCol">
+      <div id="trayTop">
+        <div class="tray"><label>红吃</label><span id="trayRed"></span></div>
+        <div class="tray"><label>黑吃</label><span id="trayBlack"></span></div>
       </div>
-      <div class="logBody" id="log"></div>
+      <div id="boardWrap"><canvas id="board" aria-label="中国象棋棋盘"></canvas></div>
     </div>
+    <aside id="side">
+      <div class="card" id="turnCard">
+        <span id="turnStone" class="stone red"></span>
+        <div id="turnText">
+          <b id="turnName">你的回合</b>
+          <span id="turnTag">执红</span>
+        </div>
+        <span id="checkBadge" class="hidden">将军</span>
+        <span id="think" class="hidden"><i></i><i></i><i></i></span>
+      </div>
+      <div class="card row-card"><label>手数</label><b id="moveCount">0</b></div>
+      <div class="card">
+        <label class="card-title">着法谱</label>
+        <ul id="logList"><li class="empty">尚未落子</li></ul>
+      </div>
+      <div class="card">
+        <label class="card-title">战绩</label>
+        <div class="stats">
+          <div><span>双人红胜</span><b id="stPb">0</b></div>
+          <div><span>双人黑胜</span><b id="stPw">0</b></div>
+          <div><span>人机胜</span><b id="stAw">0</b></div>
+          <div><span>人机负</span><b id="stAl">0</b></div>
+          <div><span>平局</span><b id="stAd">0</b></div>
+        </div>
+      </div>
+      <div class="card help">
+        <label class="card-title">操作</label>
+        <p>点击 / 触屏选子落子 · 方向键移动光标 · 回车选子落子</p>
+        <p>U 悔棋 · H 提示 · R 重开 · M 静音 · Esc 菜单</p>
+        <p>绝杀 / 困毙判负 · 六十回合无吃子判和 · 三次重复判和</p>
+      </div>
+    </aside>
+  </main>
 
-    <div class="hint">
-      <div>规则实现：车马相仕帅炮兵（含炮隔打、兵过河、帅将不见面）。</div>
-      <div>胜负：吃掉对方将/帅即结束（未做将死搜索）。</div>
+  <div id="actions">
+    <span id="turnChip">你的回合</span>
+    <div id="actBtns">
+      <button id="undoBtn" class="mid-btn">悔棋</button>
+      <button id="hintBtn" class="mid-btn">提示</button>
+      <button id="restartBtn" class="mid-btn">重开</button>
+      <button id="menuBtn" class="mid-btn accent">菜单</button>
     </div>
   </div>
 </div>
-<script type="module" src="/src/main.ts"></script>
+
+<div id="menuOv" class="overlay hidden">
+  <div class="ov-card">
+    <h2 class="ov-title">中国象棋</h2>
+    <p class="ov-sub">霓虹棋局 · 红先黑后 · 绝杀困毙判负</p>
+    <div id="mModeRow" class="mode-cards">
+      <button data-mode="pvp"><b>双人对战</b><span>同屏轮流执子，面对面博弈</span></button>
+      <button data-mode="ai" class="cur"><b>人机对弈</b><span>五档棋力，从菜鸟到大师</span></button>
+    </div>
+    <label class="ov-label">AI 棋力</label>
+    <div id="mLevelRow" class="chips wide">
+      <button data-level="1">菜鸟</button>
+      <button data-level="2">入门</button>
+      <button data-level="3" class="cur">进阶</button>
+      <button data-level="4">高手</button>
+      <button data-level="5">大师</button>
+    </div>
+    <label class="ov-label">执子</label>
+    <div id="mSideRow" class="seg wide">
+      <button data-side="1" class="cur">执红先行</button>
+      <button data-side="-1">执黑后行</button>
+    </div>
+    <div class="m-stats">
+      <span>双人 红<b id="mStPb">0</b> / 黑<b id="mStPw">0</b></span>
+      <span>人机 胜<b id="mStAw">0</b> / 负<b id="mStAl">0</b> / 平<b id="mStAd">0</b></span>
+    </div>
+    <button id="startBtn" class="big-btn">开始对局</button>
+    <button id="resumeBtn" class="mid-btn wide-btn hidden">继续当前对局</button>
+  </div>
+</div>
+
+<div id="overOv" class="overlay hidden">
+  <div class="ov-card small">
+    <h2 class="ov-title" id="overTitle">红方获胜</h2>
+    <p class="ov-sub" id="overSub">共 0 手</p>
+    <div class="ov-row">
+      <button id="againBtn" class="big-btn">再来一局</button>
+      <button id="overMenuBtn" class="mid-btn">菜单</button>
+    </div>
+  </div>
+</div>
+
+<div id="verOv" class="overlay hidden">
+  <div class="ov-card">
+    <div class="ver-head">
+      <span class="ver-title">更新日志</span>
+      <span class="ver-cur">当前 v<span id="verCur">2.0.0</span></span>
+    </div>
+    <div id="verList"></div>
+    <button id="verCloseBtn" class="big-btn">知道了</button>
+  </div>
+</div>
+
+<script src="js/engine.js"></script>
+<script src="js/ai.js"></script>
+<script src="js/sfx.js"></script>
+<script src="js/ui.js"></script>
 </body>
 </html>
