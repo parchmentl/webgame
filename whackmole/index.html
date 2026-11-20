@@ -3,204 +3,115 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>打地鼠升级版</title>
-<style>
-body {
-    margin: 0;
-    background: #222;
-    color: #fff;
-    font-family: Arial, sans-serif;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-}
-h2 {
-    margin: 20px;
-}
-.scoreboard {
-    display: flex;
-    gap: 20px;
-    font-size: 18px;
-    margin-bottom: 10px;
-}
-#game {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    grid-gap: 10px;
-    width: 90vw;
-    max-width: 400px;
-}
-.hole {
-    position: relative;
-    width: 100%;
-    padding-bottom: 100%; /* 保持正方形 */
-    background: #555;
-    border-radius: 12px;
-    overflow: hidden;
-    cursor: pointer;
-}
-.mole {
-    position: absolute;
-    width: 70%;
-    height: 70%;
-    border-radius: 50%;
-    bottom: -70%;
-    left: 15%;
-    transition: bottom 0.3s;
-}
-.mole.up { bottom: 10%; }
-.mole.normal { background: brown; }
-.mole.fast { background: red; }
-.mole.slow { background: blue; }
-button {
-    margin-top: 20px;
-    padding: 10px 20px;
-    font-size: 16px;
-    border-radius: 10px;
-    border: none;
-    background: #333;
-    color: #fff;
-    cursor: pointer;
-}
-button:hover { background: #555; }
-</style>
+<title>打地鼠 · 霓虹敲击</title>
+<link rel="stylesheet" href="style.css">
 </head>
-<body>
+<body data-state="menu">
+<div id="app">
+  <header id="top">
+    <div id="brand">
+      <h1>打地鼠</h1>
+      <span>NEON WHACK · 九洞竞技场</span>
+    </div>
+    <div id="topBtns">
+      <button id="pauseBtn" class="icon-btn" title="暂停 / 继续（空格）" aria-label="暂停">
+        <svg viewBox="0 0 24 24"><rect x="6" y="4" width="4.5" height="16" rx="2"/><rect x="13.5" y="4" width="4.5" height="16" rx="2"/></svg>
+      </button>
+      <button id="muteBtn" class="icon-btn" title="音效开关（M）" aria-pressed="false" aria-label="音效开关">
+        <svg viewBox="0 0 24 24"><path d="M4 9v6h4l6 5V4L8 9H4z"/><path class="wave" d="M16.5 8.5a5 5 0 0 1 0 7" fill="none" stroke-width="2" stroke-linecap="round"/><path class="wave" d="M18.8 6a8.4 8.4 0 0 1 0 12" fill="none" stroke-width="2" stroke-linecap="round"/><path class="slash" d="M4 4l16 16" fill="none" stroke-width="2.4" stroke-linecap="round"/></svg>
+      </button>
+      <button id="verChip" class="ver-chip">v<span id="verNum">2.0.0</span><span id="verNew" class="ver-new hidden">NEW</span></button>
+      <a id="back" href="../">← 游戏厅</a>
+    </div>
+  </header>
 
-<h2>🐹 打地鼠升级版</h2>
-<div class="scoreboard">
-    <div>得分：<span id="score">0</span></div>
-    <div>时间：<span id="time">30</span>s</div>
-    <div>最高分：<span id="highscore">0</span></div>
+  <section id="hud">
+    <div class="stat score"><label>得分</label><strong id="score">0</strong></div>
+    <div class="stat best"><label>最佳</label><strong id="best">0</strong></div>
+    <div class="stat combo" id="comboStat"><label>连击</label><strong id="comboMult">x1</strong><span id="comboCount">0 连击</span></div>
+    <div class="stat lives"><label>生命</label><div id="lives"></div></div>
+  </section>
+
+  <div id="timeWrap">
+    <div id="timeBar"><i id="timeFill"></i></div>
+    <span id="timeText">60s</span>
+  </div>
+
+  <main id="boardWrap">
+    <div id="board" aria-label="地鼠洞"></div>
+  </main>
+
+  <footer id="legend">
+    <span class="lg"><i class="dot normal"></i>地鼠 +10</span>
+    <span class="lg"><i class="dot gold"></i>金鼠 +50</span>
+    <span class="lg"><i class="dot bomb"></i>炸弹 −1 命</span>
+    <span class="lg keys">键 1-9 敲击 · 空格暂停 · M 静音</span>
+  </footer>
 </div>
-<div id="game"></div>
-<button id="restartBtn">重新开始</button>
 
-<audio id="hitSound" src="https://cdn.jsdelivr.net/gh/likerain/sounds/mole-hit.mp3" preload="auto"></audio>
+<div id="hammer" class="hidden" aria-hidden="true">
+  <svg viewBox="0 0 80 80"><defs><linearGradient id="hg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#22d3ee"/><stop offset="1" stop-color="#ff2d78"/></linearGradient></defs><rect x="36" y="28" width="8" height="46" rx="4" fill="#b45309" stroke="#fbbf24" stroke-width="1.5"/><rect x="14" y="8" width="52" height="24" rx="9" fill="url(#hg)" stroke="#22d3ee" stroke-width="2"/></svg>
+</div>
+<div id="flash" aria-hidden="true"></div>
 
-<script>
-const game = document.getElementById('game');
-const scoreEl = document.getElementById('score');
-const timeEl = document.getElementById('time');
-const highScoreEl = document.getElementById('highscore');
-const restartBtn = document.getElementById('restartBtn');
-const hitSound = document.getElementById('hitSound');
+<div id="menuOv" class="overlay">
+  <div class="ov-card">
+    <h2 class="ov-title">打地鼠</h2>
+    <p class="ov-sub">60 秒霓虹敲击 · 连击倍率最高 x5</p>
+    <div id="diffRow">
+      <button class="diff" data-diff="casual"><b>休闲</b><span>慢速出没 · 无炸弹 · 5 命</span><em id="bestCasual">最佳 0</em></button>
+      <button class="diff cur" data-diff="standard"><b>标准</b><span>炸弹出没 · 3 命</span><em id="bestStandard">最佳 0</em></button>
+      <button class="diff" data-diff="master"><b>大师</b><span>极速多洞 · 炸弹更多</span><em id="bestMaster">最佳 0</em></button>
+    </div>
+    <ul id="rules">
+      <li>敲中地鼠得分，连击每 5 次倍率 +1（最高 x5）</li>
+      <li>金鼠值 50 但缩得更快；炸弹敲中扣 1 命</li>
+      <li>空敲与地鼠逃脱都会断连击；生命归零提前结束</li>
+    </ul>
+    <button id="startBtn" class="big-btn">开始游戏</button>
+  </div>
+</div>
 
-let score = 0;
-let highScore = localStorage.getItem('moleHigh') || 0;
-highScoreEl.textContent = highScore;
+<div id="pauseOv" class="overlay hidden">
+  <div class="ov-card small">
+    <h2 class="ov-title">已暂停</h2>
+    <button id="resumeBtn" class="big-btn">继续游戏</button>
+    <div class="ov-row">
+      <button id="pauseRestart" class="mid-btn">重新开始</button>
+      <button id="pauseMenu" class="mid-btn">主菜单</button>
+    </div>
+  </div>
+</div>
 
-const holes = [];
-const numHoles = 9;
-let lastHole;
-let timeUp = false;
-let gameTime = 30; // 30秒
-let countdownInterval;
+<div id="overOv" class="overlay hidden">
+  <div class="ov-card">
+    <h2 class="ov-title" id="overTitle">时间到</h2>
+    <div id="overScoreWrap"><strong id="overScore">0</strong><span id="newRecord" class="hidden">新纪录！</span></div>
+    <div id="overStats">
+      <div><label>命中</label><b id="stHits">0</b></div>
+      <div><label>空敲</label><b id="stMiss">0</b></div>
+      <div><label>最高连击</label><b id="stCombo">0</b></div>
+      <div><label>准确率</label><b id="stAcc">0%</b></div>
+    </div>
+    <div class="ov-row">
+      <button id="againBtn" class="big-btn">再来一局</button>
+      <button id="menuBtn" class="mid-btn">换难度</button>
+    </div>
+  </div>
+</div>
 
-// 创建洞和地鼠
-for(let i=0;i<numHoles;i++){
-    const hole = document.createElement('div');
-    hole.classList.add('hole');
-    const mole = document.createElement('div');
-    mole.classList.add('mole', 'normal');
-    hole.appendChild(mole);
-    game.appendChild(hole);
-    holes.push(hole);
-}
+<div id="verOv" class="overlay hidden">
+  <div class="ov-card">
+    <div class="ver-head">
+      <span class="ver-title">更新日志</span>
+      <span class="ver-cur">当前 v<span id="verCur">2.0.0</span></span>
+    </div>
+    <div id="verList"></div>
+    <button id="verCloseBtn" class="big-btn">知道了</button>
+  </div>
+</div>
 
-// 随机选择洞
-function randomHole(){
-    const idx = Math.floor(Math.random()*holes.length);
-    const hole = holes[idx];
-    if(hole === lastHole) return randomHole();
-    lastHole = hole;
-    return hole;
-}
-
-// 随机地鼠类型
-function randomMoleType(){
-    const r = Math.random();
-    if(r < 0.6) return 'normal'; // 普通 60%
-    else if(r < 0.85) return 'fast'; // 快 25%
-    else return 'slow'; // 慢 15%
-}
-
-// 弹出地鼠
-function popMole(){
-    const timeMap = {normal:[500,1000], fast:[300,600], slow:[800,1500]};
-    const hole = randomHole();
-    const mole = hole.querySelector('.mole');
-    const type = randomMoleType();
-    mole.className = `mole ${type} up`;
-    const popTime = Math.random()*(timeMap[type][1]-timeMap[type][0])+timeMap[type][0];
-
-    setTimeout(()=>{
-        mole.classList.remove('up');
-        if(!timeUp) popMole();
-    }, popTime);
-}
-
-// 点击打地鼠
-holes.forEach(hole=>{
-    hole.addEventListener('click', e=>{
-        const mole = hole.querySelector('.mole');
-        if(mole.classList.contains('up')){
-            // 分数
-            let type = 'normal';
-            if(mole.classList.contains('fast')) type='fast';
-            if(mole.classList.contains('slow')) type='slow';
-            const points = type==='normal'?1:type==='fast'?2:3;
-            score += points;
-            scoreEl.textContent = score;
-
-            // 播放声音
-            hitSound.currentTime = 0;
-            hitSound.play();
-
-            mole.classList.remove('up');
-        }
-    });
-});
-
-// 倒计时
-function startTimer(){
-    gameTime = 30;
-    timeEl.textContent = gameTime;
-    countdownInterval = setInterval(()=>{
-        gameTime--;
-        timeEl.textContent = gameTime;
-        if(gameTime <= 0){
-            timeUp = true;
-            clearInterval(countdownInterval);
-            if(score > highScore){
-                highScore = score;
-                localStorage.setItem('moleHigh', highScore);
-                highScoreEl.textContent = highScore;
-            }
-            alert(`游戏结束！得分：${score}`);
-        }
-    },1000);
-}
-
-// 开始游戏
-function startGame(){
-    score = 0;
-    scoreEl.textContent = score;
-    timeUp = false;
-    popMole();
-    startTimer();
-}
-
-// 重新开始按钮
-restartBtn.addEventListener('click', ()=>{
-    timeUp=true; // 停掉当前弹出
-    setTimeout(()=>{
-        startGame();
-    },100); // 确保旧的 popMole 停掉
-});
-
-// 自动开始
-startGame();
-</script>
+<script src="js/sfx.js"></script>
+<script src="js/game.js"></script>
 </body>
 </html>
